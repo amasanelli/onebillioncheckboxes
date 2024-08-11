@@ -88,6 +88,10 @@
         pointer-events: none;
       }
 
+      input[type="checkbox"].waiting {
+        opacity: 0.5;
+      }
+
       #footer {
         padding: 10px;
         border-top: 1px solid #333;
@@ -129,63 +133,66 @@
     <script>
       const totalCheckboxes = 10000;
 
-      function processData(buffer) {
-        const view = new DataView(buffer);
+      const ws = new WebSocket("ws://localhost:3003");
+      ws.binaryType = "arraybuffer";
+      ws.onmessage = function (event) {
+        console.log(typeof event.data);
+        const arrayBuffer = event.data;
+        const view = new DataView(arrayBuffer);
 
-        const first = view.getUint32(0, true);
+        console.log(arrayBuffer);
 
-        const uint8ArrayLength = buffer.byteLength - 4;
-        const uint8Array = new Uint8Array(buffer, 4, uint8ArrayLength);
+        if (view.byteLength === 4) {
+          const id = view.getUint32(0, true);
 
-        let id = first;
-        for (const byte of uint8Array) {
-          for (let y = 0; y < 8; y++) {
-            const checkbox = document.getElementById(`c${id}`);
+          const checkbox = document.getElementById(`c${id}`);
+          checkbox.checked = true;
+          checkbox.classList.remove("waiting");
+        } else {
+          const firstId = view.getUint32(0, true);
 
-            if (!checkbox) {
-              continue;
+          const uint8ArrayLength = arrayBuffer.byteLength - 4;
+          const uint8Array = new Uint8Array(arrayBuffer, 4, uint8ArrayLength);
+
+          console.log(firstId, uint8Array);
+
+          let id = firstId;
+          for (const byte of uint8Array) {
+            for (let y = 0; y < 8; y++) {
+              const checkbox = document.getElementById(`c${id}`);
+
+              if (!checkbox) {
+                continue;
+              }
+
+              const checked = (byte >> y) & 1;
+              if (checked) {
+                checkbox.checked = true;
+              } else {
+                checkbox.classList.remove("disabled");
+              }
+
+              id++;
             }
-
-            checkbox.classList.remove("disabled");
-
-            const checked = (byte >> y) & 1;
-            if (checked) {
-              checkbox.checked = true;
-            }
-
-            id++;
           }
         }
+      };
+
+      function postData(id) {
+        const message = new Uint32Array(1);
+        message[0] = id;
+
+        console.log(id);
+
+        ws.send(message);
       }
 
       function getData(first, last) {
-        setTimeout(() => {
-          const checkboxes = last - first + 1;
-          const uint8ArrayLength = Math.ceil(checkboxes / 8);
-          const totalLength = 4 + uint8ArrayLength;
+        const message = new Uint32Array(2);
+        message[0] = first;
+        message[1] = last;
 
-          const buffer = new ArrayBuffer(totalLength);
-          const view = new DataView(buffer);
-
-          view.setUint32(0, first, true);
-
-          const uint8Array = new Uint8Array(buffer, 4);
-
-          for (let x = 0; x < uint8ArrayLength; x++) {
-            let byte = 0;
-
-            for (let y = 0; y < 8; y++) {
-              const checked = Math.random() >= 0.5;
-              if (checked) {
-                byte |= 1 << y;
-              }
-            }
-
-            uint8Array[x] = byte;
-          }
-
-          processData(buffer);
-        }, 3000);
+        ws.send(message);
       }
 
       function main() {
@@ -250,6 +257,13 @@
             input.id = `c${id}`;
             input.title = id;
             input.classList.add("disabled");
+            input.addEventListener("change", (event) => {
+              if (event.target.checked) {
+                event.target.classList.add("disabled");
+                event.target.classList.add("waiting");
+                postData(parseInt(event.target.id.slice(1)));
+              }
+            });
             div.append(input);
             id++;
           }
@@ -289,6 +303,12 @@
                   input.id = `c${id}`;
                   input.title = id;
                   input.classList.add("disabled");
+                  input.addEventListener("change", (event) => {
+                    if (event.target.checked) {
+                      event.target.classList.add("disabled");
+                      postData(parseInt(event.target.id.slice(1)));
+                    }
+                  });
                   div.append(input);
                   id++;
                 }
@@ -335,6 +355,12 @@
                   input.id = `c${id}`;
                   input.title = id;
                   input.classList.add("disabled");
+                  input.addEventListener("change", (event) => {
+                    if (event.target.checked) {
+                      event.target.classList.add("disabled");
+                      postData(parseInt(event.target.id.slice(1)));
+                    }
+                  });
                   div.prepend(input);
                   id--;
                 }
@@ -405,6 +431,13 @@
                   input.id = `c${id}`;
                   input.title = id;
                   input.classList.add("disabled");
+                  input.addEventListener("change", (event) => {
+                    console.log(event.target.checked);
+                    if (event.target.checked) {
+                      event.target.classList.add("disabled");
+                      postData(parseInt(event.target.id.slice(1)));
+                    }
+                  });
                   div.append(input);
                   id++;
                 }
@@ -422,7 +455,7 @@
               checkbox.focus();
 
               let scrollTimeout;
-              function onEvent() {
+              function onEvent(event) {
                 clearTimeout(scrollTimeout);
 
                 scrollTimeout = setTimeout(() => {
@@ -457,7 +490,10 @@
         });
       }
 
-      main();
+      ws.onopen = function (event) {
+        console.log("WebSocket connection established.");
+        main();
+      };
     </script>
   </body>
 </html>

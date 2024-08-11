@@ -1,0 +1,28 @@
+name: onebillioncheckboxes
+
+services:
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # auth:
+  #   build:
+  #     context: ./
+  #     dockerfile: ./dockerfile
+  #   restart: always
+  #   ports:
+  #     - "3003:80"
+  #   env_file:
+  #     - $ENV_FILE_PATH
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #     mongo-setup:
+  #       condition: service_completed_successfully
