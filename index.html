@@ -84,6 +84,10 @@
         margin: 5px;
       }
 
+      input[type="checkbox"].disabled {
+        pointer-events: none;
+      }
+
       #footer {
         padding: 10px;
         border-top: 1px solid #333;
@@ -123,8 +127,68 @@
     </div>
 
     <script>
+      const totalCheckboxes = 10000;
+
+      function processData(buffer) {
+        const view = new DataView(buffer);
+
+        const first = view.getUint32(0, true);
+
+        const uint8ArrayLength = buffer.byteLength - 4;
+        const uint8Array = new Uint8Array(buffer, 4, uint8ArrayLength);
+
+        let id = first;
+        for (const byte of uint8Array) {
+          for (let y = 0; y < 8; y++) {
+            const checkbox = document.getElementById(`c${id}`);
+
+            if (!checkbox) {
+              continue;
+            }
+
+            checkbox.classList.remove("disabled");
+
+            const checked = (byte >> y) & 1;
+            if (checked) {
+              checkbox.checked = true;
+            }
+
+            id++;
+          }
+        }
+      }
+
+      function getData(first, last) {
+        setTimeout(() => {
+          const checkboxes = last - first + 1;
+          const uint8ArrayLength = Math.ceil(checkboxes / 8);
+          const totalLength = 4 + uint8ArrayLength;
+
+          const buffer = new ArrayBuffer(totalLength);
+          const view = new DataView(buffer);
+
+          view.setUint32(0, first, true);
+
+          const uint8Array = new Uint8Array(buffer, 4);
+
+          for (let x = 0; x < uint8ArrayLength; x++) {
+            let byte = 0;
+
+            for (let y = 0; y < 8; y++) {
+              const checked = Math.random() >= 0.5;
+              if (checked) {
+                byte |= 1 << y;
+              }
+            }
+
+            uint8Array[x] = byte;
+          }
+
+          processData(buffer);
+        }, 3000);
+      }
+
       function main() {
-        const totalCheckboxes = 10000;
         const checkboxSize = 30;
         const extraRowsToRender = 10;
 
@@ -174,7 +238,7 @@
           }
         );
 
-        let id = 0;
+        let id = 1;
         for (let y = 1; y <= rowsPerScreen + extraRowsToRender; y++) {
           const div = document.createElement("div");
           div.classList.add("row");
@@ -183,15 +247,18 @@
           for (let x = 1; x <= checkboxesPerRow; x++) {
             const input = document.createElement("input");
             input.type = "checkbox";
-            id++;
             input.id = `c${id}`;
             input.title = id;
+            input.classList.add("disabled");
             div.append(input);
+            id++;
           }
 
           rowsContainer.append(div);
           rowObserver.observe(div);
         }
+
+        getData(1, (rowsPerScreen + extraRowsToRender) * checkboxesPerRow);
 
         const downObserver = new IntersectionObserver(
           (entries) => {
@@ -208,26 +275,29 @@
                 return;
               }
 
-              let id = lastId;
+              let id = lastId + 1;
               for (let y = 1; y <= rowsToRender; y++) {
                 const div = document.createElement("div");
                 div.classList.add("row");
                 div.id = `r${y + lastRowId}`;
 
-                const checkboxes = Math.min(totalCheckboxes - id, checkboxesPerRow);
+                const checkboxes = Math.min(totalCheckboxes - (lastId - 1), checkboxesPerRow);
 
                 for (let x = 1; x <= checkboxes; x++) {
                   const input = document.createElement("input");
                   input.type = "checkbox";
-                  id++;
                   input.id = `c${id}`;
                   input.title = id;
+                  input.classList.add("disabled");
                   div.append(input);
+                  id++;
                 }
 
                 rowsContainer.append(div);
                 rowObserver.observe(div);
               }
+
+              getData(lastId + 1, id - 1);
             }
           },
           {
@@ -253,7 +323,7 @@
                 return;
               }
 
-              let id = firstId;
+              let id = firstId - 1;
               for (let y = 1; y <= rowsToRender; y++) {
                 const div = document.createElement("div");
                 div.classList.add("row");
@@ -262,15 +332,18 @@
                 for (let x = 1; x <= checkboxesPerRow; x++) {
                   const input = document.createElement("input");
                   input.type = "checkbox";
-                  id--;
                   input.id = `c${id}`;
                   input.title = id;
+                  input.classList.add("disabled");
                   div.prepend(input);
+                  id--;
                 }
 
                 rowsContainer.prepend(div);
                 rowObserver.observe(div);
               }
+
+              getData(id + 1, firstId - 1);
 
               scrollable.scrollTop = extraRowsToRender * checkboxSize;
             }
@@ -318,26 +391,29 @@
               const lastRowId = topScreenRowId - 1 - preExtraRows;
               const lastId = lastRowId * checkboxesPerRow;
 
-              let id = lastId;
+              let id = lastId + 1;
               for (let y = 1; y <= rowsToRender; y++) {
                 const div = document.createElement("div");
                 div.classList.add("row");
                 div.id = `r${y + lastRowId}`;
 
-                const checkboxes = Math.min(totalCheckboxes - lastId, checkboxesPerRow);
+                const checkboxes = Math.min(totalCheckboxes - (lastId - 1), checkboxesPerRow);
 
                 for (let x = 1; x <= checkboxes; x++) {
                   const input = document.createElement("input");
                   input.type = "checkbox";
-                  id++;
                   input.id = `c${id}`;
                   input.title = id;
+                  input.classList.add("disabled");
                   div.append(input);
+                  id++;
                 }
 
                 rowsContainer.append(div);
                 rowObserver.observe(div);
               }
+
+              getData(lastId + 1, id - 1);
             }
 
             const checkbox = document.getElementById(`c${idToSearch}`);
