@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>1 billion checkboxes 10000000000</title>
+    <style>
+      * {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        text-align: center;
+        color: #333;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      #header {
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        height: 130px;
+        border-bottom: 1px solid #333;
+      }
+
+      .icon {
+        vertical-align: text-bottom;
+        width: 1em;
+        height: 1em;
+      }
+
+      #search {
+        width: 100px;
+      }
+
+      #view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: scroll;
+        overflow-x: auto;
+      }
+
+      .loading {
+        padding: 5px;
+        height: 30px;
+        flex-shrink: 0;
+        width: 100%;
+      }
+
+      .loading.hidden {
+        display: none;
+      }
+
+      .spinner {
+        margin: auto;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-top-color: #333;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      #container {
+        flex: 1;
+      }
+
+      .row {
+        text-wrap: nowrap;
+        height: 30px;
+      }
+
+      input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        width: 20px;
+        height: 20px;
+        margin: 5px;
+        border: 1px solid #333;
+        outline: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      input[type="checkbox"]:checked {
+        background-color: #333;
+      }
+
+      input[type="checkbox"].highlight {
+        border: 3px solid blue;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="header">
+      <div>
+        <!-- prettier-ignore -->
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#333" d="m12.89 3l1.96.4L11.11 21l-1.96-.4zm6.7 9L16 8.41V5.58L22.42 12L16 18.41v-2.83zM1.58 12L8 5.58v2.83L4.41 12L8 15.58v2.83z"/></svg>
+        with
+        <!-- prettier-ignore -->
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#333" d="m12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5C2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.53z"/></svg>
+        by
+        <a href="mailto:me@me.com">me</a>
+      </div>
+      <h1>1 Billion Checkboxes</h1>
+      <div>x checks</div>
+      <input id="search" type="number" placeholder="search" />
+    </div>
+
+    <div id="view">
+      <div class="loading hidden">
+        <div id="loading-up" class="loading hidden">
+          <div class="spinner"></div>
+        </div>
+      </div>
+      <div id="container"></div>
+      <div id="loading-down" class="loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <script>
+      function main() {
+        const totalCheckboxes = 10000;
+        const container = document.getElementById("container");
+        const view = document.getElementById("view");
+
+        const checkboxSize = 30;
+        const extraRowsToRender = 10;
+
+        const checkboxesPerRow = Math.floor(
+          container.clientWidth / checkboxSize
+        );
+        const rowsPerScreen = Math.floor(view.clientHeight / checkboxSize); // FIXME - rename
+        const bottomRow = Math.ceil(totalCheckboxes / checkboxesPerRow);
+        const firstRowOfBottomScreen = bottomRow - (rowsPerScreen - 1);
+
+        console.log(
+          checkboxesPerRow,
+          rowsPerScreen,
+          container.scrollHeight,
+          container.offsetHeight,
+          container.clientHeight,
+          bottomRow,
+          firstRowOfBottomScreen,
+          container.clientHeight / checkboxSize
+        );
+
+        const rowObserver = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                entry.target.viewed = true; // allows to add rows outside the viewport
+              } else if (entry.target.viewed) {
+                entry.target.remove(); // the row must be marked as viewed before removing
+
+                const firstRow = container.firstElementChild;
+                const firstCheckbox = firstRow.firstElementChild;
+                const firstId = parseInt(firstCheckbox.id);
+
+                if (firstId > 1) {
+                  document
+                    .getElementById("loading-up")
+                    .classList.remove("hidden");
+                  document
+                    .getElementById("loading-up")
+                    .parentElement.classList.remove("hidden");
+                } else {
+                  document.getElementById("loading-up").classList.add("hidden");
+                  document
+                    .getElementById("loading-up")
+                    .parentElement.classList.remove("hidden");
+                }
+
+                const lastRow = container.lastElementChild;
+                const lastCheckbox = lastRow.lastElementChild; // FIXME - rename
+                const lastId = parseInt(lastCheckbox.id);
+
+                if (lastId < totalCheckboxes) {
+                  document
+                    .getElementById("loading-down")
+                    .classList.remove("hidden");
+                } else {
+                  document
+                    .getElementById("loading-down")
+                    .classList.add("hidden");
+                }
+              }
+            }
+          },
+          {
+            root: view,
+            rootMargin: `${extraRowsToRender * checkboxSize * 2}px`,
+          }
+        );
+
+        for (let y = 1; y <= rowsPerScreen + extraRowsToRender; y++) {
+          const div = document.createElement("div");
+          div.classList.add("row");
+          div.id = `r${y}`;
+
+          for (let x = 1; x <= checkboxesPerRow; x++) {
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            const id = x + (y - 1) * checkboxesPerRow;
+            input.id = id;
+            input.title = id;
+            div.append(input);
+          }
+
+          container.append(div);
+          rowObserver.observe(div);
+        }
+
+        const downObserver = new IntersectionObserver(
+          (entries) => {
+            console.log(entries[0]);
+            if (entries[0].isIntersecting) {
+              const lastRow = container.lastElementChild;
+              const lastRowId = parseInt(lastRow.id.slice(1));
+              const lastCheckbox = lastRow.lastElementChild;
+              const lastId = parseInt(lastCheckbox.id);
+
+              const rows = Math.min(
+                Math.ceil((totalCheckboxes - lastId) / checkboxesPerRow),
+                extraRowsToRender
+              );
+
+              if (rows === 0) {
+                document.getElementById("loading-down").classList.add("hidden");
+                return;
+              }
+
+              for (let y = 1; y <= rows; y++) {
+                const div = document.createElement("div");
+                div.classList.add("row");
+                div.id = `r${y + lastRowId}`;
+
+                const checkboxes = Math.min(
+                  totalCheckboxes - ((y - 1) * checkboxesPerRow + lastId),
+                  checkboxesPerRow
+                );
+
+                for (let x = 1; x <= checkboxes; x++) {
+                  const input = document.createElement("input");
+                  input.type = "checkbox";
+                  const id = x + (y - 1) * checkboxesPerRow + lastId;
+                  input.id = id;
+                  input.title = id;
+                  div.append(input);
+                }
+
+                container.append(div);
+                rowObserver.observe(div);
+              }
+            }
+          },
+          {
+            root: view,
+            threshold: 0.5,
+          }
+        );
+
+        downObserver.observe(document.getElementById("loading-down"));
+
+        const upObserver = new IntersectionObserver(
+          (entries) => {
+            console.log(entries[0]);
+            if (entries[0].isIntersecting) {
+              const firstRow = container.firstElementChild;
+              const firstRowId = parseInt(firstRow.id.slice(1));
+              const firstCheckbox = firstRow.firstElementChild;
+              const firstId = parseInt(firstCheckbox.id);
+
+              const rows = Math.min(
+                firstId / checkboxesPerRow,
+                extraRowsToRender
+              );
+
+              if (rows === 0) {
+                document.getElementById("loading-up").classList.add("hidden");
+                document
+                  .getElementById("loading-up")
+                  .parentElement.classList.add("hidden");
+                return;
+              }
+
+              for (let y = 1; y <= rows; y++) {
+                const div = document.createElement("div");
+                div.classList.add("row");
+                div.id = `r${firstRowId - y}`;
+
+                for (let x = 1; x <= checkboxesPerRow; x++) {
+                  const input = document.createElement("input");
+                  input.type = "checkbox";
+                  const id = firstId - x - (y - 1) * checkboxesPerRow;
+                  input.id = id;
+                  input.title = id;
+                  div.prepend(input);
+                }
+
+                container.prepend(div);
+                rowObserver.observe(div);
+              }
+
+              view.scrollTop = extraRowsToRender * checkboxSize;
+            }
+          },
+          {
+            root: view,
+            threshold: 0.5,
+          }
+        );
+
+        upObserver.observe(document.getElementById("loading-up"));
+
+        const search = document.getElementById("search");
+
+        search.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            const id = this.value;
+
+            if (id < 1 || id > totalCheckboxes) {
+              return;
+            }
+
+            const firstRow = container.firstElementChild;
+            const firstRowId = parseInt(firstRow.id.slice(1));
+            const firstCheckbox = firstRow.firstElementChild;
+            const firstId = parseInt(firstCheckbox.id);
+
+            const lastRow = container.lastElementChild;
+            const lastRowId = parseInt(lastRow.id.slice(1));
+            const lastCheckbox = lastRow.lastElementChild; // FIXME - rename
+            const lastId = parseInt(lastCheckbox.id);
+
+            if (id > lastId || id < firstId) {
+              rowObserver.disconnect();
+              document.getElementById("loading-up").classList.add("hidden");
+              document
+                .getElementById("loading-up")
+                .parentElement.classList.remove("hidden");
+              document.getElementById("loading-down").classList.add("hidden");
+
+              upObserver.disconnect();
+              downObserver.disconnect();
+
+              const row = Math.min(
+                Math.ceil(id / checkboxesPerRow),
+                firstRowOfBottomScreen
+              );
+
+              const preExtraRows = Math.min(row - 1, extraRowsToRender);
+
+              const lastRowId = row - 1 - preExtraRows;
+              const lastId = lastRowId * checkboxesPerRow;
+              container.innerHTML = "";
+
+              const posExtraRows = Math.min(
+                Math.ceil(
+                  (totalCheckboxes -
+                    ((row - 1) * checkboxesPerRow +
+                      rowsPerScreen * checkboxesPerRow)) /
+                    checkboxesPerRow
+                ),
+                extraRowsToRender
+              );
+
+              const rows = preExtraRows + rowsPerScreen + posExtraRows;
+
+              console.log(
+                preExtraRows,
+                Math.ceil(id / checkboxesPerRow),
+                firstRowOfBottomScreen,
+                row,
+                checkboxesPerRow,
+                lastId,
+                lastRowId,
+                posExtraRows,
+                rows
+              );
+
+              for (let y = 1; y <= rows; y++) {
+                const div = document.createElement("div");
+                div.classList.add("row");
+                div.id = `r${y + lastRowId}`;
+
+                const checkboxes = Math.min(
+                  totalCheckboxes - ((y - 1) * checkboxesPerRow + lastId),
+                  checkboxesPerRow
+                );
+
+                for (let x = 1; x <= checkboxes; x++) {
+                  const input = document.createElement("input");
+                  input.type = "checkbox";
+                  const id = x + (y - 1) * checkboxesPerRow + lastId;
+                  input.id = id;
+                  input.title = id;
+                  div.append(input);
+                }
+
+                container.append(div);
+                rowObserver.observe(div);
+              }
+
+              //
+            }
+
+            const checkbox = document.getElementById(id);
+
+            if (checkbox) {
+              checkbox.classList.add("highlight");
+
+              let scrollTimeout;
+
+              function onEvent() {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                  console.log("Scroll ended");
+
+                  const firstRow = container.firstElementChild;
+                  const firstCheckbox = firstRow.firstElementChild;
+                  const firstId = parseInt(firstCheckbox.id);
+
+                  if (firstId > 1) {
+                    document
+                      .getElementById("loading-up")
+                      .classList.remove("hidden");
+                    document
+                      .getElementById("loading-up")
+                      .parentElement.classList.remove("hidden");
+                  } else {
+                    document
+                      .getElementById("loading-up")
+                      .classList.add("hidden");
+                    document
+                      .getElementById("loading-up")
+                      .parentElement.classList.remove("hidden");
+                  }
+
+                  const lastRow = container.lastElementChild;
+                  const lastCheckbox = lastRow.lastElementChild; // FIXME - rename
+                  const lastId = parseInt(lastCheckbox.id);
+
+                  if (lastId < totalCheckboxes) {
+                    document
+                      .getElementById("loading-down")
+                      .classList.remove("hidden");
+                  } else {
+                    document
+                      .getElementById("loading-down")
+                      .classList.add("hidden");
+                  }
+
+                  downObserver.observe(document.getElementById("loading-down"));
+                  upObserver.observe(document.getElementById("loading-up"));
+
+                  view.removeEventListener("scroll", onEvent);
+                }, 100);
+              }
+
+              view.addEventListener("scroll", onEvent);
+
+              const row = document.getElementById(`r${Math.ceil(id / checkboxesPerRow)}`)
+
+              row.scrollIntoView({ behavior: "smooth", block: "start" });
+
+              setTimeout(() => {
+                const checkbox = document.getElementById(id);
+                checkbox.classList.remove("highlight");
+              }, 3000);
+            }
+          }
+        });
+      }
+
+      main();
+    </script>
+  </body>
+</html>
