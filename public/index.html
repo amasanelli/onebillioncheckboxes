@@ -166,7 +166,179 @@
       const reconnectInterval = 5000;
       const checkboxSize = 30;
       const extraRowsToRender = 10;
+
       let websocket;
+      const scrollable = document.getElementById("scrollable");
+      const rowsContainer = document.getElementById("rows-container");
+      const loadingUp = document.getElementById("loading-up");
+      const loadingDown = document.getElementById("loading-down");
+      const search = document.getElementById("search");
+
+      const rowsPerScreen = Math.floor(scrollable.clientHeight / checkboxSize);
+      const checkboxesPerRow = Math.floor(rowsContainer.clientWidth / checkboxSize);
+      const bottomRow = Math.ceil(totalCheckboxes / checkboxesPerRow);
+      const firstRowOfBottomScreen = bottomRow - (rowsPerScreen - 1);
+
+      const rowObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              entry.target.viewed = true; // allows to add rows outside the viewport
+            } else if (entry.target.viewed) {
+              entry.target.remove(); // the row must be marked as viewed before removing
+
+              const rowsContainer = document.getElementById("rows-container");
+              const loadingUp = document.getElementById("loading-up");
+              const loadingDown = document.getElementById("loading-down");
+
+              const firstRow = rowsContainer.firstElementChild;
+              const firstCheckbox = firstRow.firstElementChild;
+              const firstId = parseInt(firstCheckbox.id.slice(1));
+
+              if (firstId > 1) {
+                loadingUp.classList.remove("hidden");
+              } else {
+                loadingUp.classList.add("hidden");
+              }
+
+              const lastRow = rowsContainer.lastElementChild;
+              const lastCheckbox = lastRow.lastElementChild;
+              const lastId = parseInt(lastCheckbox.id.slice(1));
+
+              if (lastId < totalCheckboxes) {
+                loadingDown.classList.remove("hidden");
+              } else {
+                loadingDown.classList.add("hidden");
+              }
+            }
+          }
+        },
+        {
+          root: scrollable,
+          rootMargin: `${extraRowsToRender * checkboxSize * 2}px`,
+        }
+      );
+
+      const upObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            const rowsContainer = document.getElementById("rows-container");
+            const scrollable = document.getElementById("scrollable");
+
+            const firstRow = rowsContainer.firstElementChild;
+            const firstRowId = parseInt(firstRow.id.slice(1));
+            const firstCheckbox = firstRow.firstElementChild;
+            const firstId = parseInt(firstCheckbox.id.slice(1));
+
+            const rowsToRender = Math.min(firstId / checkboxesPerRow, extraRowsToRender);
+
+            if (rowsToRender === 0) {
+              loadingUp.classList.add("hidden");
+              return;
+            }
+
+            let id = firstId - 1;
+            for (let y = 1; y <= rowsToRender; y++) {
+              const div = document.createElement("div");
+              div.classList.add("row");
+              div.id = `r${firstRowId - y}`;
+
+              for (let x = 1; x <= checkboxesPerRow; x++) {
+                const input = document.createElement("input");
+                input.type = "checkbox";
+                input.id = `c${id}`;
+                input.title = id;
+                input.classList.add("disabled");
+                input.addEventListener("keydown", (event) => {
+                  if (event.target.checked) {
+                    event.preventDefault();
+                  }
+                });
+                input.addEventListener("change", (event) => {
+                  if (event.target.checked) {
+                    event.target.classList.add("disabled");
+                    event.target.classList.add("waiting");
+                    postData(parseInt(event.target.id.slice(1)));
+                  }
+                });
+                div.prepend(input);
+                id--;
+              }
+
+              rowsContainer.prepend(div);
+              rowObserver.observe(div);
+            }
+
+            getData(id + 1, firstId - 1);
+
+            scrollable.scrollTop = extraRowsToRender * checkboxSize;
+          }
+        },
+        {
+          root: scrollable,
+          threshold: 0.5,
+        }
+      );
+
+      const downObserver = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            const rowsContainer = document.getElementById("rows-container");
+
+            const lastRow = rowsContainer.lastElementChild;
+            const lastRowId = parseInt(lastRow.id.slice(1));
+            const lastCheckbox = lastRow.lastElementChild;
+            const lastId = parseInt(lastCheckbox.id.slice(1));
+
+            const rowsToRender = Math.min(Math.ceil((totalCheckboxes - lastId) / checkboxesPerRow), extraRowsToRender);
+
+            if (rowsToRender === 0) {
+              loadingDown.classList.add("hidden");
+              return;
+            }
+
+            let id = lastId + 1;
+            for (let y = 1; y <= rowsToRender; y++) {
+              const div = document.createElement("div");
+              div.classList.add("row");
+              div.id = `r${y + lastRowId}`;
+
+              const checkboxes = Math.min(totalCheckboxes - (id - 1), checkboxesPerRow);
+
+              for (let x = 1; x <= checkboxes; x++) {
+                const input = document.createElement("input");
+                input.type = "checkbox";
+                input.id = `c${id}`;
+                input.title = id;
+                input.classList.add("disabled");
+                input.addEventListener("keydown", (event) => {
+                  if (event.target.checked) {
+                    event.preventDefault();
+                  }
+                });
+                input.addEventListener("change", (event) => {
+                  if (event.target.checked) {
+                    event.target.classList.add("disabled");
+                    event.target.classList.add("waiting");
+                    postData(parseInt(event.target.id.slice(1)));
+                  }
+                });
+                div.append(input);
+                id++;
+              }
+
+              rowsContainer.append(div);
+              rowObserver.observe(div);
+            }
+
+            getData(lastId + 1, id - 1);
+          }
+        },
+        {
+          root: scrollable,
+          threshold: 0.5,
+        }
+      );
 
       function processData(arrayBuffer) {
         const view = new DataView(arrayBuffer);
@@ -176,11 +348,7 @@
 
           const counter = document.getElementById("counter");
           counter.innerHTML = checks;
-
-          return;
-        }
-
-        if (view.byteLength === 8) {
+        } else if (view.byteLength === 8) {
           const checks = view.getUint32(0, true);
 
           const counter = document.getElementById("counter");
@@ -189,13 +357,15 @@
           const id = view.getUint32(4, true);
 
           const checkbox = document.getElementById(`c${id}`);
+
+          if (!checkbox) {
+            return;
+          }
+
           checkbox.checked = true;
           checkbox.classList.remove("waiting");
-
-          return;
-        }
-
-        if (view.byteLength > 8) {
+        } else {
+          // view.byteLength > 8
           const firstId = view.getUint32(0, true);
 
           const uint8ArrayLength = arrayBuffer.byteLength - 4;
@@ -220,8 +390,6 @@
               id++;
             }
           }
-
-          return;
         }
       }
 
@@ -229,7 +397,9 @@
         const message = new Uint32Array(1);
         message[0] = id;
 
-        websocket.send(message);
+        try {
+          websocket.send(message);
+        } catch (error) {}
       }
 
       function getData(first, last) {
@@ -237,65 +407,131 @@
         message[0] = first;
         message[1] = last;
 
-        websocket.send(message);
+        try {
+          websocket.send(message);
+        } catch (error) {}
       }
 
-      let rowObserver;
-      let downObserver;
-      let upObserver;
+      function onKeyDown(event) {
+        if (event.key !== "Enter") {
+          return;
+        }
 
-      function init() {
+        const idToSearch = this.value;
+
+        if (idToSearch < 1 || idToSearch > totalCheckboxes) {
+          return;
+        }
+
         const scrollable = document.getElementById("scrollable");
         const rowsContainer = document.getElementById("rows-container");
         const loadingUp = document.getElementById("loading-up");
         const loadingDown = document.getElementById("loading-down");
 
-        const rowsPerScreen = Math.floor(scrollable.clientHeight / checkboxSize);
-        const checkboxesPerRow = Math.floor(rowsContainer.clientWidth / checkboxSize);
-        const bottomRow = Math.ceil(totalCheckboxes / checkboxesPerRow);
-        const firstRowOfBottomScreen = bottomRow - (rowsPerScreen - 1);
+        const firstRow = rowsContainer.firstElementChild;
+        const firstCheckbox = firstRow.firstElementChild;
+        const firstId = parseInt(firstCheckbox.id.slice(1));
 
-        rowObserver = new IntersectionObserver(
-          (entries) => {
-            for (const entry of entries) {
-              if (entry.isIntersecting) {
-                entry.target.viewed = true; // allows to add rows outside the viewport
-              } else if (entry.target.viewed) {
-                // const row = document.getElementById(entry.target.id);
-                // if (!row) {
-                //   return;
-                // }
+        const lastRow = rowsContainer.lastElementChild;
+        const lastCheckbox = lastRow.lastElementChild;
+        const lastId = parseInt(lastCheckbox.id.slice(1));
 
-                entry.target.remove(); // the row must be marked as viewed before removing
+        if (idToSearch > lastId || idToSearch < firstId) {
+          rowObserver.disconnect();
+          upObserver.disconnect();
+          downObserver.disconnect();
+          loadingUp.classList.add("hidden");
+          loadingDown.classList.add("hidden");
+          rowsContainer.innerHTML = "";
 
-                const firstRow = rowsContainer.firstElementChild;
-                const firstCheckbox = firstRow.firstElementChild;
-                const firstId = parseInt(firstCheckbox.id.slice(1));
+          const topScreenRowId = Math.min(Math.ceil(idToSearch / checkboxesPerRow), firstRowOfBottomScreen);
 
-                if (firstId > 1) {
-                  loadingUp.classList.remove("hidden");
-                } else {
-                  loadingUp.classList.add("hidden");
+          const preExtraRows = Math.min(topScreenRowId - 1, extraRowsToRender);
+          const posExtraRows = Math.min(bottomRow - (topScreenRowId - 1) - rowsPerScreen, extraRowsToRender);
+          const rowsToRender = preExtraRows + rowsPerScreen + posExtraRows;
+
+          const lastRowId = topScreenRowId - 1 - preExtraRows;
+          const lastId = lastRowId * checkboxesPerRow;
+
+          let id = lastId + 1;
+          for (let y = 1; y <= rowsToRender; y++) {
+            const div = document.createElement("div");
+            div.classList.add("row");
+            div.id = `r${y + lastRowId}`;
+
+            const checkboxes = Math.min(totalCheckboxes - (id - 1), checkboxesPerRow);
+
+            for (let x = 1; x <= checkboxes; x++) {
+              const input = document.createElement("input");
+              input.type = "checkbox";
+              input.id = `c${id}`;
+              input.title = id;
+              input.classList.add("disabled");
+              input.addEventListener("keydown", (event) => {
+                if (event.target.checked) {
+                  event.preventDefault();
                 }
-
-                const lastRow = rowsContainer.lastElementChild;
-                const lastCheckbox = lastRow.lastElementChild;
-                const lastId = parseInt(lastCheckbox.id.slice(1));
-
-                if (lastId < totalCheckboxes) {
-                  loadingDown.classList.remove("hidden");
-                } else {
-                  loadingDown.classList.add("hidden");
+              });
+              input.addEventListener("change", (event) => {
+                if (event.target.checked) {
+                  event.target.classList.add("disabled");
+                  event.target.classList.add("waiting");
+                  postData(parseInt(event.target.id.slice(1)));
                 }
-              }
+              });
+              div.append(input);
+              id++;
             }
-          },
-          {
-            root: scrollable,
-            rootMargin: `${extraRowsToRender * checkboxSize * 2}px`,
-          }
-        );
 
+            rowsContainer.append(div);
+            rowObserver.observe(div);
+          }
+
+          getData(lastId + 1, id - 1);
+        }
+
+        const checkbox = document.getElementById(`c${idToSearch}`);
+
+        if (!checkbox) {
+          return;
+        }
+
+        checkbox.focus();
+
+        let scrollTimeout;
+        function onScroll() {
+          clearTimeout(scrollTimeout);
+
+          scrollTimeout = setTimeout(() => {
+            const firstRow = rowsContainer.firstElementChild;
+            const firstCheckbox = firstRow.firstElementChild;
+            const firstId = parseInt(firstCheckbox.id.slice(1));
+
+            if (firstId > 1) {
+              loadingUp.classList.remove("hidden");
+            }
+
+            const lastRow = rowsContainer.lastElementChild;
+            const lastCheckbox = lastRow.lastElementChild;
+            const lastId = parseInt(lastCheckbox.id.slice(1));
+
+            if (lastId < totalCheckboxes) {
+              loadingDown.classList.remove("hidden");
+            }
+
+            downObserver.observe(loadingDown);
+            upObserver.observe(loadingUp);
+
+            scrollable.removeEventListener("scroll", onScroll);
+          }, 100);
+        }
+        scrollable.addEventListener("scroll", onScroll);
+
+        const rowToScrollIntoView = document.getElementById(`r${Math.ceil(idToSearch / checkboxesPerRow)}`);
+        rowToScrollIntoView.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function init() {
         let id = 1;
         for (let y = 1; y <= rowsPerScreen + extraRowsToRender; y++) {
           const div = document.createElement("div");
@@ -330,237 +566,9 @@
 
         getData(1, (rowsPerScreen + extraRowsToRender) * checkboxesPerRow);
 
-        downObserver = new IntersectionObserver(
-          (entries) => {
-            if (entries[0].isIntersecting) {
-              const lastRow = rowsContainer.lastElementChild;
-              const lastRowId = parseInt(lastRow.id.slice(1));
-              const lastCheckbox = lastRow.lastElementChild;
-              const lastId = parseInt(lastCheckbox.id.slice(1));
-
-              const rowsToRender = Math.min(Math.ceil((totalCheckboxes - lastId) / checkboxesPerRow), extraRowsToRender);
-
-              if (rowsToRender === 0) {
-                loadingDown.classList.add("hidden");
-                return;
-              }
-
-              let id = lastId + 1;
-              for (let y = 1; y <= rowsToRender; y++) {
-                const div = document.createElement("div");
-                div.classList.add("row");
-                div.id = `r${y + lastRowId}`;
-
-                const checkboxes = Math.min(totalCheckboxes - (id - 1), checkboxesPerRow);
-
-                for (let x = 1; x <= checkboxes; x++) {
-                  const input = document.createElement("input");
-                  input.type = "checkbox";
-                  input.id = `c${id}`;
-                  input.title = id;
-                  input.classList.add("disabled");
-                  input.addEventListener("keydown", (event) => {
-                    if (event.target.checked) {
-                      event.preventDefault();
-                    }
-                  });
-                  input.addEventListener("change", (event) => {
-                    if (event.target.checked) {
-                      event.target.classList.add("disabled");
-                      event.target.classList.add("waiting");
-                      postData(parseInt(event.target.id.slice(1)));
-                    }
-                  });
-                  div.append(input);
-                  id++;
-                }
-
-                rowsContainer.append(div);
-                rowObserver.observe(div);
-              }
-
-              getData(lastId + 1, id - 1);
-            }
-          },
-          {
-            root: scrollable,
-            threshold: 0.5,
-          }
-        );
-
-        downObserver.observe(loadingDown);
-
-        upObserver = new IntersectionObserver(
-          (entries) => {
-            if (entries[0].isIntersecting) {
-              const firstRow = rowsContainer.firstElementChild;
-              const firstRowId = parseInt(firstRow.id.slice(1));
-              const firstCheckbox = firstRow.firstElementChild;
-              const firstId = parseInt(firstCheckbox.id.slice(1));
-
-              const rowsToRender = Math.min(firstId / checkboxesPerRow, extraRowsToRender);
-
-              if (rowsToRender === 0) {
-                loadingUp.classList.add("hidden");
-                return;
-              }
-
-              let id = firstId - 1;
-              for (let y = 1; y <= rowsToRender; y++) {
-                const div = document.createElement("div");
-                div.classList.add("row");
-                div.id = `r${firstRowId - y}`;
-
-                for (let x = 1; x <= checkboxesPerRow; x++) {
-                  const input = document.createElement("input");
-                  input.type = "checkbox";
-                  input.id = `c${id}`;
-                  input.title = id;
-                  input.classList.add("disabled");
-                  input.addEventListener("keydown", (event) => {
-                    if (event.target.checked) {
-                      event.preventDefault();
-                    }
-                  });
-                  input.addEventListener("change", (event) => {
-                    if (event.target.checked) {
-                      event.target.classList.add("disabled");
-                      event.target.classList.add("waiting");
-                      postData(parseInt(event.target.id.slice(1)));
-                    }
-                  });
-                  div.prepend(input);
-                  id--;
-                }
-
-                rowsContainer.prepend(div);
-                rowObserver.observe(div);
-              }
-
-              getData(id + 1, firstId - 1);
-
-              scrollable.scrollTop = extraRowsToRender * checkboxSize;
-            }
-          },
-          {
-            root: scrollable,
-            threshold: 0.5,
-          }
-        );
-
         upObserver.observe(loadingUp);
-
-        const search = document.getElementById("search");
-
-        search.addEventListener("keydown", function (event) {
-          if (event.key === "Enter") {
-            const idToSearch = this.value;
-
-            if (idToSearch < 1 || idToSearch > totalCheckboxes) {
-              return;
-            }
-
-            const firstRow = rowsContainer.firstElementChild;
-            const firstCheckbox = firstRow.firstElementChild;
-            const firstId = parseInt(firstCheckbox.id.slice(1));
-
-            const lastRow = rowsContainer.lastElementChild;
-            const lastCheckbox = lastRow.lastElementChild;
-            const lastId = parseInt(lastCheckbox.id.slice(1));
-
-            if (idToSearch > lastId || idToSearch < firstId) {
-              rowObserver.disconnect();
-              upObserver.disconnect();
-              downObserver.disconnect();
-              loadingUp.classList.add("hidden");
-              loadingDown.classList.add("hidden");
-              rowsContainer.innerHTML = "";
-
-              const topScreenRowId = Math.min(Math.ceil(idToSearch / checkboxesPerRow), firstRowOfBottomScreen);
-
-              const preExtraRows = Math.min(topScreenRowId - 1, extraRowsToRender);
-              const posExtraRows = Math.min(bottomRow - (topScreenRowId - 1) - rowsPerScreen, extraRowsToRender);
-              const rowsToRender = preExtraRows + rowsPerScreen + posExtraRows;
-
-              const lastRowId = topScreenRowId - 1 - preExtraRows;
-              const lastId = lastRowId * checkboxesPerRow;
-
-              let id = lastId + 1;
-              for (let y = 1; y <= rowsToRender; y++) {
-                const div = document.createElement("div");
-                div.classList.add("row");
-                div.id = `r${y + lastRowId}`;
-
-                const checkboxes = Math.min(totalCheckboxes - (id - 1), checkboxesPerRow);
-
-                for (let x = 1; x <= checkboxes; x++) {
-                  const input = document.createElement("input");
-                  input.type = "checkbox";
-                  input.id = `c${id}`;
-                  input.title = id;
-                  input.classList.add("disabled");
-                  input.addEventListener("keydown", (event) => {
-                    if (event.target.checked) {
-                      event.preventDefault();
-                    }
-                  });
-                  input.addEventListener("change", (event) => {
-                    if (event.target.checked) {
-                      event.target.classList.add("disabled");
-                      event.target.classList.add("waiting");
-                      postData(parseInt(event.target.id.slice(1)));
-                    }
-                  });
-                  div.append(input);
-                  id++;
-                }
-
-                rowsContainer.append(div);
-                rowObserver.observe(div);
-              }
-
-              getData(lastId + 1, id - 1);
-            }
-
-            const checkbox = document.getElementById(`c${idToSearch}`);
-
-            if (checkbox) {
-              checkbox.focus();
-
-              let scrollTimeout;
-              function onScroll() {
-                clearTimeout(scrollTimeout);
-
-                scrollTimeout = setTimeout(() => {
-                  const firstRow = rowsContainer.firstElementChild;
-                  const firstCheckbox = firstRow.firstElementChild;
-                  const firstId = parseInt(firstCheckbox.id.slice(1));
-
-                  if (firstId > 1) {
-                    loadingUp.classList.remove("hidden");
-                  }
-
-                  const lastRow = rowsContainer.lastElementChild;
-                  const lastCheckbox = lastRow.lastElementChild;
-                  const lastId = parseInt(lastCheckbox.id.slice(1));
-
-                  if (lastId < totalCheckboxes) {
-                    loadingDown.classList.remove("hidden");
-                  }
-
-                  downObserver.observe(loadingDown);
-                  upObserver.observe(loadingUp);
-
-                  scrollable.removeEventListener("scroll", onScroll);
-                }, 100);
-              }
-              scrollable.addEventListener("scroll", onScroll);
-
-              const rowToScrollIntoView = document.getElementById(`r${Math.ceil(idToSearch / checkboxesPerRow)}`);
-              rowToScrollIntoView.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }
-        });
+        downObserver.observe(loadingDown);
+        search.addEventListener("keydown", onKeyDown);
       }
 
       function connect() {
@@ -579,19 +587,15 @@
           const rowsContainer = document.getElementById("rows-container");
           const loadingUp = document.getElementById("loading-up");
           const loadingDown = document.getElementById("loading-down");
+          const search = document.getElementById("search");
 
-          if (rowObserver) {
-            rowObserver.disconnect();
-          }
-          if (upObserver) {
-            upObserver.disconnect();
-          }
-          if (downObserver) {
-            downObserver.disconnect();
-          }
+          rowObserver.disconnect();
+          upObserver.disconnect();
+          downObserver.disconnect();
           loadingUp.classList.add("hidden");
           loadingDown.classList.remove("hidden");
           rowsContainer.innerHTML = "";
+          search.removeEventListener("keydown", onKeyDown);
 
           setTimeout(connect, reconnectInterval);
         };
