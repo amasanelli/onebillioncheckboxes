@@ -24,7 +24,7 @@ type envSchema struct {
 var envData *envSchema
 var validate *validator.Validate
 var rCli *redis.Client
-var pool *connectionPool
+var pool *connectionsPool
 var upg *websocket.Upgrader
 
 func main() {
@@ -68,8 +68,9 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", handleWS)
+	mux.HandleFunc("/ws", handleWebsocket)
 	mux.HandleFunc("/ping", handlePing)
+	mux.HandleFunc("/", handleGet)
 
 	srv := &http.Server{
 		Addr:    envData.SERVER_ADDRESS,
@@ -77,7 +78,7 @@ func main() {
 	}
 	defer srv.Shutdown(context.Background())
 
-	pool = newPool()
+	pool = newConnectionsPool()
 	defer pool.Close()
 
 	go func() {

@@ -1,10 +1,11 @@
+<!-- FIXME - clousures -->
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="favicon.png" type="image/png" />
-    <title>1.000.000.000 checkboxes</title>
+    <title>One Billion Checkboxes</title>
     <style>
       * {
         font-family: Arial, sans-serif;
@@ -106,7 +107,7 @@
   </head>
   <body>
     <div id="header">
-      <div>x checked</div>
+      <div><span id="counter">0</span> checks</div>
       <h1>One Billion Checkboxes</h1>
       <input id="search" type="number" placeholder="search" />
     </div>
@@ -132,23 +133,41 @@
 
     <script>
       const totalCheckboxes = 10000;
+      const reconnectInterval = 5000;
+      const checkboxSize = 30;
+      const extraRowsToRender = 10;
+      let websocket;
 
-      const ws = new WebSocket("ws://localhost:3003");
-      ws.binaryType = "arraybuffer";
-      ws.onmessage = function (event) {
-        console.log(typeof event.data);
-        const arrayBuffer = event.data;
+      function processData(arrayBuffer) {
         const view = new DataView(arrayBuffer);
 
         console.log(arrayBuffer);
 
         if (view.byteLength === 4) {
-          const id = view.getUint32(0, true);
+          const checks = view.getUint32(0, true);
+
+          const counter = document.getElementById("counter");
+          counter.innerHTML = checks;
+
+          return;
+        }
+
+        if (view.byteLength === 8) {
+          const checks = view.getUint32(0, true);
+
+          const counter = document.getElementById("counter");
+          counter.innerHTML = checks;
+
+          const id = view.getUint32(4, true);
 
           const checkbox = document.getElementById(`c${id}`);
           checkbox.checked = true;
           checkbox.classList.remove("waiting");
-        } else {
+
+          return;
+        }
+
+        if (view.byteLength > 8) {
           const firstId = view.getUint32(0, true);
 
           const uint8ArrayLength = arrayBuffer.byteLength - 4;
@@ -175,8 +194,10 @@
               id++;
             }
           }
+
+          return;
         }
-      };
+      }
 
       function postData(id) {
         const message = new Uint32Array(1);
@@ -184,7 +205,7 @@
 
         console.log(id);
 
-        ws.send(message);
+        websocket.send(message);
       }
 
       function getData(first, last) {
@@ -192,15 +213,16 @@
         message[0] = first;
         message[1] = last;
 
-        ws.send(message);
+        websocket.send(message);
       }
 
-      function main() {
-        const checkboxSize = 30;
-        const extraRowsToRender = 10;
+      let rowObserver;
+      let downObserver;
+      let upObserver;
 
-        const rowsContainer = document.getElementById("rows-container");
+      function init() {
         const scrollable = document.getElementById("scrollable");
+        const rowsContainer = document.getElementById("rows-container");
         const loadingUp = document.getElementById("loading-up");
         const loadingDown = document.getElementById("loading-down");
 
@@ -209,12 +231,17 @@
         const bottomRow = Math.ceil(totalCheckboxes / checkboxesPerRow);
         const firstRowOfBottomScreen = bottomRow - (rowsPerScreen - 1);
 
-        const rowObserver = new IntersectionObserver(
+        rowObserver = new IntersectionObserver(
           (entries) => {
             for (const entry of entries) {
               if (entry.isIntersecting) {
                 entry.target.viewed = true; // allows to add rows outside the viewport
               } else if (entry.target.viewed) {
+                const row = document.getElementById(entry.target.id);
+                if (!row) {
+                  return;
+                }
+
                 entry.target.remove(); // the row must be marked as viewed before removing
 
                 const firstRow = rowsContainer.firstElementChild;
@@ -274,7 +301,7 @@
 
         getData(1, (rowsPerScreen + extraRowsToRender) * checkboxesPerRow);
 
-        const downObserver = new IntersectionObserver(
+        downObserver = new IntersectionObserver(
           (entries) => {
             if (entries[0].isIntersecting) {
               const lastRow = rowsContainer.lastElementChild;
@@ -295,7 +322,7 @@
                 div.classList.add("row");
                 div.id = `r${y + lastRowId}`;
 
-                const checkboxes = Math.min(totalCheckboxes - (lastId - 1), checkboxesPerRow);
+                const checkboxes = Math.min(totalCheckboxes - (id - 1), checkboxesPerRow);
 
                 for (let x = 1; x <= checkboxes; x++) {
                   const input = document.createElement("input");
@@ -306,6 +333,7 @@
                   input.addEventListener("change", (event) => {
                     if (event.target.checked) {
                       event.target.classList.add("disabled");
+                      event.target.classList.add("waiting");
                       postData(parseInt(event.target.id.slice(1)));
                     }
                   });
@@ -328,7 +356,7 @@
 
         downObserver.observe(loadingDown);
 
-        const upObserver = new IntersectionObserver(
+        upObserver = new IntersectionObserver(
           (entries) => {
             if (entries[0].isIntersecting) {
               const firstRow = rowsContainer.firstElementChild;
@@ -358,6 +386,7 @@
                   input.addEventListener("change", (event) => {
                     if (event.target.checked) {
                       event.target.classList.add("disabled");
+                      event.target.classList.add("waiting");
                       postData(parseInt(event.target.id.slice(1)));
                     }
                   });
@@ -423,7 +452,7 @@
                 div.classList.add("row");
                 div.id = `r${y + lastRowId}`;
 
-                const checkboxes = Math.min(totalCheckboxes - (lastId - 1), checkboxesPerRow);
+                const checkboxes = Math.min(totalCheckboxes - (id - 1), checkboxesPerRow);
 
                 for (let x = 1; x <= checkboxes; x++) {
                   const input = document.createElement("input");
@@ -435,6 +464,7 @@
                     console.log(event.target.checked);
                     if (event.target.checked) {
                       event.target.classList.add("disabled");
+                      event.target.classList.add("waiting");
                       postData(parseInt(event.target.id.slice(1)));
                     }
                   });
@@ -455,7 +485,7 @@
               checkbox.focus();
 
               let scrollTimeout;
-              function onEvent(event) {
+              function onScroll() {
                 clearTimeout(scrollTimeout);
 
                 scrollTimeout = setTimeout(() => {
@@ -478,10 +508,10 @@
                   downObserver.observe(loadingDown);
                   upObserver.observe(loadingUp);
 
-                  scrollable.removeEventListener("scroll", onEvent);
+                  scrollable.removeEventListener("scroll", onScroll);
                 }, 100);
               }
-              scrollable.addEventListener("scroll", onEvent);
+              scrollable.addEventListener("scroll", onScroll);
 
               const rowToScrollIntoView = document.getElementById(`r${Math.ceil(idToSearch / checkboxesPerRow)}`);
               rowToScrollIntoView.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -490,10 +520,41 @@
         });
       }
 
-      ws.onopen = function (event) {
-        console.log("WebSocket connection established.");
-        main();
-      };
+      function connect() {
+        websocket = new WebSocket("ws://localhost:3003/ws");
+        websocket.binaryType = "arraybuffer";
+
+        websocket.onopen = function () {
+          init();
+        };
+
+        websocket.onmessage = function (event) {
+          processData(event.data);
+        };
+
+        websocket.onclose = function (event) {
+          console.log(event);
+          rowObserver.disconnect();
+          upObserver.disconnect();
+          downObserver.disconnect();
+          scrollable.innerHTML = `
+            <div id="loading-up" class="loading hidden">
+              <div class="spinner"></div>
+            </div>
+            <div id="rows-container"></div>
+            <div id="loading-down" class="loading">
+              <div class="spinner"></div>
+            </div>
+          `;
+          setTimeout(connect, reconnectInterval);
+        };
+
+        websocket.onerror = function () {
+          websocket.close();
+        };
+      }
+
+      connect();
     </script>
   </body>
 </html>
