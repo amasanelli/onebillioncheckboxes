@@ -237,10 +237,10 @@
               if (entry.isIntersecting) {
                 entry.target.viewed = true; // allows to add rows outside the viewport
               } else if (entry.target.viewed) {
-                const row = document.getElementById(entry.target.id);
-                if (!row) {
-                  return;
-                }
+                // const row = document.getElementById(entry.target.id);
+                // if (!row) {
+                //   return;
+                // }
 
                 entry.target.remove(); // the row must be marked as viewed before removing
 
@@ -533,19 +533,19 @@
         };
 
         websocket.onclose = function (event) {
+          const rowsContainer = document.getElementById("rows-container");
+          const loadingUp = document.getElementById("loading-up");
+          const loadingDown = document.getElementById("loading-down");
+
           console.log(event);
+
           rowObserver.disconnect();
           upObserver.disconnect();
           downObserver.disconnect();
-          scrollable.innerHTML = `
-            <div id="loading-up" class="loading hidden">
-              <div class="spinner"></div>
-            </div>
-            <div id="rows-container"></div>
-            <div id="loading-down" class="loading">
-              <div class="spinner"></div>
-            </div>
-          `;
+          loadingUp.classList.add("hidden");
+          loadingDown.classList.remove("hidden");
+          rowsContainer.innerHTML = "";
+
           setTimeout(connect, reconnectInterval);
         };
 
