@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,18 +15,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type handler struct {
+func handlePing(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "pong"})
 }
 
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func handleWS(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
-
-	upg := &websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
 
 	con, err := upg.Upgrade(w, r, nil)
 	if err != nil {

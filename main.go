@@ -11,6 +11,7 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
@@ -24,6 +25,7 @@ var envData *envSchema
 var validate *validator.Validate
 var rCli *redis.Client
 var pool *connectionPool
+var upg *websocket.Upgrader
 
 func main() {
 	envData = &envSchema{}
@@ -40,6 +42,12 @@ func main() {
 
 	if err := validate.Struct(envData); err != nil {
 		panic(err)
+	}
+
+	upg = &websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
 	}
 
 	rOpts, err := redis.ParseURL(envData.REDIS_URI)
@@ -60,8 +68,8 @@ func main() {
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
 	mux := http.NewServeMux()
-	mux.Handle("/", &handler{})
-	mux.Handle("/ping", &ping{})
+	mux.HandleFunc("/ws", handleWS)
+	mux.HandleFunc("/ping", handlePing)
 
 	srv := &http.Server{
 		Addr:    envData.SERVER_ADDRESS,
