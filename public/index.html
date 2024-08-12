@@ -185,11 +185,12 @@
             if (entry.isIntersecting) {
               entry.target.viewed = true; // allows to add rows outside the viewport
             } else if (entry.target.viewed) {
-              entry.target.remove(); // the row must be marked as viewed before removing
+              const row = document.getElementById(entry.target.id);
+              if (!row) {
+                return;
+              }
 
-              const rowsContainer = document.getElementById("rows-container");
-              const loadingUp = document.getElementById("loading-up");
-              const loadingDown = document.getElementById("loading-down");
+              entry.target.remove(); // the row must be marked as viewed before removing
 
               const firstRow = rowsContainer.firstElementChild;
               const firstCheckbox = firstRow.firstElementChild;
@@ -222,9 +223,6 @@
       const upObserver = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            const rowsContainer = document.getElementById("rows-container");
-            const scrollable = document.getElementById("scrollable");
-
             const firstRow = rowsContainer.firstElementChild;
             const firstRowId = parseInt(firstRow.id.slice(1));
             const firstCheckbox = firstRow.firstElementChild;
@@ -283,8 +281,6 @@
       const downObserver = new IntersectionObserver(
         (entries) => {
           if (entries[0].isIntersecting) {
-            const rowsContainer = document.getElementById("rows-container");
-
             const lastRow = rowsContainer.lastElementChild;
             const lastRowId = parseInt(lastRow.id.slice(1));
             const lastCheckbox = lastRow.lastElementChild;
@@ -422,11 +418,6 @@
         if (idToSearch < 1 || idToSearch > totalCheckboxes) {
           return;
         }
-
-        const scrollable = document.getElementById("scrollable");
-        const rowsContainer = document.getElementById("rows-container");
-        const loadingUp = document.getElementById("loading-up");
-        const loadingDown = document.getElementById("loading-down");
 
         const firstRow = rowsContainer.firstElementChild;
         const firstCheckbox = firstRow.firstElementChild;
@@ -584,11 +575,6 @@
         };
 
         websocket.onclose = function (event) {
-          const rowsContainer = document.getElementById("rows-container");
-          const loadingUp = document.getElementById("loading-up");
-          const loadingDown = document.getElementById("loading-down");
-          const search = document.getElementById("search");
-
           rowObserver.disconnect();
           upObserver.disconnect();
           downObserver.disconnect();
