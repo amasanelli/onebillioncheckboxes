@@ -53,7 +53,6 @@
       .loading {
         padding: 5px;
         height: 30px;
-        width: 100%;
       }
 
       .loading.hidden {
@@ -172,8 +171,6 @@
       function processData(arrayBuffer) {
         const view = new DataView(arrayBuffer);
 
-        console.log(arrayBuffer);
-
         if (view.byteLength === 4) {
           const checks = view.getUint32(0, true);
 
@@ -204,8 +201,6 @@
           const uint8ArrayLength = arrayBuffer.byteLength - 4;
           const uint8Array = new Uint8Array(arrayBuffer, 4, uint8ArrayLength);
 
-          console.log(firstId, uint8Array);
-
           let id = firstId;
           for (const byte of uint8Array) {
             for (let y = 0; y < 8; y++) {
@@ -233,8 +228,6 @@
       function postData(id) {
         const message = new Uint32Array(1);
         message[0] = id;
-
-        console.log(id);
 
         websocket.send(message);
       }
@@ -315,6 +308,11 @@
             input.id = `c${id}`;
             input.title = id;
             input.classList.add("disabled");
+            input.addEventListener("keydown", (event) => {
+              if (event.target.checked) {
+                event.preventDefault();
+              }
+            });
             input.addEventListener("change", (event) => {
               if (event.target.checked) {
                 event.target.classList.add("disabled");
@@ -361,6 +359,11 @@
                   input.id = `c${id}`;
                   input.title = id;
                   input.classList.add("disabled");
+                  input.addEventListener("keydown", (event) => {
+                    if (event.target.checked) {
+                      event.preventDefault();
+                    }
+                  });
                   input.addEventListener("change", (event) => {
                     if (event.target.checked) {
                       event.target.classList.add("disabled");
@@ -414,6 +417,11 @@
                   input.id = `c${id}`;
                   input.title = id;
                   input.classList.add("disabled");
+                  input.addEventListener("keydown", (event) => {
+                    if (event.target.checked) {
+                      event.preventDefault();
+                    }
+                  });
                   input.addEventListener("change", (event) => {
                     if (event.target.checked) {
                       event.target.classList.add("disabled");
@@ -491,8 +499,12 @@
                   input.id = `c${id}`;
                   input.title = id;
                   input.classList.add("disabled");
+                  input.addEventListener("keydown", (event) => {
+                    if (event.target.checked) {
+                      event.preventDefault();
+                    }
+                  });
                   input.addEventListener("change", (event) => {
-                    console.log(event.target.checked);
                     if (event.target.checked) {
                       event.target.classList.add("disabled");
                       event.target.classList.add("waiting");
@@ -567,8 +579,6 @@
           const rowsContainer = document.getElementById("rows-container");
           const loadingUp = document.getElementById("loading-up");
           const loadingDown = document.getElementById("loading-down");
-
-          console.log(event);
 
           if (rowObserver) {
             rowObserver.disconnect();
