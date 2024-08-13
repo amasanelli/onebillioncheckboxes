@@ -8,6 +8,6 @@ const (
 	ENV_FILE_PATH     string        = "./.env"
 	REDIS_CHANNEL     string        = "ckecks"
 	REDIS_KEY         string        = "ckecks"
-	TotalCheckboxes   int           = 1_000_000_000
+	TotalCheckboxes   uint32        = 1_000_000_000
 	ReconnectInterval time.Duration = 5 * time.Second
 )

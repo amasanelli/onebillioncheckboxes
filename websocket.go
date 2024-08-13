@@ -12,55 +12,51 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type message struct {
+type messageDTO struct {
 	messageType int
 	message     []uint8
 }
 
-type connectionHandler struct {
+type websocketHandler struct {
 	connection *websocket.Conn
-	send       chan message
+	send       chan messageDTO
 	done       chan struct{}
 	once       *sync.Once
 }
 
-func newConnectionHandler(connection *websocket.Conn) *connectionHandler {
-	send := make(chan message, 256)
+func newWebsocketHandler(connection *websocket.Conn) *websocketHandler {
+	send := make(chan messageDTO)
 	done := make(chan struct{})
 	once := &sync.Once{}
 
-	connection.SetPingHandler(func(msg string) error {
-		message := message{
-			messageType: websocket.PongMessage,
-			message:     []uint8(msg),
-		}
-		send <- message
-		return nil
-	})
-
-	connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
-
-	connection.SetPongHandler(func(string) error {
-		connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
-		return nil
-	})
-
-	connectionHandler := &connectionHandler{
+	handler := &websocketHandler{
 		connection: connection,
 		send:       send,
 		done:       done,
 		once:       once,
 	}
 
-	pool.Add(connectionHandler)
+	pool.add(handler)
 
-	return connectionHandler
+	return handler
 }
 
-func (h *connectionHandler) run() {
+func (h *websocketHandler) run() {
 	go h.listen()
 	go h.read()
 	go h.write()
+
+	h.connection.SetPingHandler(func(msg string) error {
+		h.send <- messageDTO{messageType: websocket.PongMessage, message: []uint8(msg)}
+		return nil
+	})
+
+	h.connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
+
+	h.connection.SetPongHandler(func(string) error {
+		h.connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
+		return nil
+	})
 
 	uint8Slice := make([]uint8, 4)
 
@@ -72,28 +68,28 @@ func (h *connectionHandler) run() {
 	uint32Checks := uint32(checks)
 	binary.LittleEndian.PutUint32(uint8Slice, uint32Checks)
 
-	h.send <- message{messageType: websocket.BinaryMessage, message: uint8Slice}
+	h.send <- messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice}
 }
 
-func (h *connectionHandler) close() {
+func (h *websocketHandler) close() {
 	h.once.Do(func() {
 		close(h.done)
-		pool.Remove(h)
+		pool.remove(h)
 		h.connection.Close()
 	})
 }
 
-func (h *connectionHandler) read() {
+func (h *websocketHandler) read() {
 	defer h.close()
 
 	for {
-		_, msg, err := h.connection.ReadMessage()
+		_, message, err := h.connection.ReadMessage()
 		if err != nil {
 			log.Printf("[websockets error]: error reading message from client: %s\n", err.Error())
 			return
 		}
 
-		messageLen := len(msg)
+		messageLen := len(message)
 
 		if messageLen != 4 && messageLen != 8 {
 			continue
@@ -104,10 +100,15 @@ func (h *connectionHandler) read() {
 
 		for i := 0; i < uint32SliceLen; i++ {
 			start := i * 4
-			uint32Slice[i] = binary.LittleEndian.Uint32(msg[start:])
+			uint32Value := binary.LittleEndian.Uint32(message[start:])
+			uint32Slice[i] = uint32Value
 		}
 
 		if uint32SliceLen == 1 {
+			if uint32Slice[0] < 1 || uint32Slice[0] > TotalCheckboxes {
+				continue
+			}
+
 			member := strconv.FormatUint(uint64(uint32Slice[0]), 10)
 			score := float64(uint32Slice[0])
 			if err := rCli.ZAdd(context.Background(), REDIS_KEY, redis.Z{Score: score, Member: member}).Err(); err != nil {
@@ -126,22 +127,23 @@ func (h *connectionHandler) read() {
 			binary.LittleEndian.PutUint32(uint8Slice[:4], uint32Checks)
 
 			for i := 0; i < 4; i++ {
-				uint8Slice[i+4] = msg[i]
+				uint8Slice[i+4] = message[i]
 			}
 
 			if err := rCli.Publish(context.Background(), REDIS_CHANNEL, uint8Slice).Err(); err != nil {
 				log.Printf("[redis error]: error publishing checkbox: %s\n", err.Error())
 			}
+		} else {
+			// uint32SliceLen == 2
+			if uint32Slice[0] < 1 || uint32Slice[0] > TotalCheckboxes || uint32Slice[1] < uint32Slice[0] || uint32Slice[1] > TotalCheckboxes {
+				continue
+			}
 
-			continue
-		}
-
-		if uint32SliceLen == 2 {
 			min := strconv.FormatUint(uint64(uint32Slice[0]), 10)
 			max := strconv.FormatUint(uint64(uint32Slice[1]), 10)
 			checkboxes, err := rCli.ZRangeByScore(context.Background(), REDIS_KEY, &redis.ZRangeBy{Min: min, Max: max}).Result()
 			if err != nil {
-				log.Printf("[redis error]: error getting checkboxes: %s\n", err.Error())
+				log.Printf("[redis error]: error getting checked checkboxes: %s\n", err.Error())
 				continue
 			}
 
@@ -149,14 +151,13 @@ func (h *connectionHandler) read() {
 			uint8Slice := make([]uint8, uint8SliceLen)
 
 			for i := 0; i < 4; i++ {
-				uint8Slice[i] = msg[i]
+				uint8Slice[i] = message[i]
 			}
 
 			for i := 0; i < len(checkboxes); i++ {
 				strValue := checkboxes[i]
 				uint64value, err := strconv.ParseUint(strValue, 10, 32)
 				if err != nil {
-					log.Printf("[internal server error]: error parsing checkboxes data: %s\n", err.Error())
 					continue
 				}
 				uint32Value := uint32(uint64value)
@@ -166,14 +167,12 @@ func (h *connectionHandler) read() {
 				uint8Slice[byteIndex+4] |= (1 << (bitIndex % 8))
 			}
 
-			h.send <- message{messageType: websocket.BinaryMessage, message: uint8Slice}
-
-			continue
+			h.send <- messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice}
 		}
 	}
 }
 
-func (h *connectionHandler) listen() {
+func (h *websocketHandler) listen() {
 	defer h.close()
 
 	pubsub := rCli.Subscribe(context.Background(), REDIS_CHANNEL)
@@ -185,7 +184,7 @@ func (h *connectionHandler) listen() {
 			if !ok {
 				return
 			}
-			h.send <- message{messageType: websocket.BinaryMessage, message: []uint8(msg.Payload)}
+			h.send <- messageDTO{messageType: websocket.BinaryMessage, message: []uint8(msg.Payload)}
 
 		case <-h.done:
 			return
@@ -193,7 +192,7 @@ func (h *connectionHandler) listen() {
 	}
 }
 
-func (h *connectionHandler) write() {
+func (h *websocketHandler) write() {
 	defer h.close()
 
 	ticker := time.NewTicker(PING_INTERVAL)

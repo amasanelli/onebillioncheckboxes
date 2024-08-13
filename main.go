@@ -46,12 +46,12 @@ func main() {
 
 	err = env.Parse(envData)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("error parsing env vars: %s", err.Error()))
 	}
 
 	err = validate.Struct(envData)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("invalid env vars: %s", err.Error()))
 	}
 
 	upgrader = &websocket.Upgrader{
@@ -75,7 +75,7 @@ func main() {
 
 	indexTemplate, err = template.ParseFiles("./templates/index.html")
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("error parsing index template: %s", err.Error()))
 	}
 
 	mux := http.NewServeMux()
@@ -90,7 +90,7 @@ func main() {
 	defer srv.Shutdown(context.Background())
 
 	pool = newHandlersPool()
-	defer pool.Close()
+	defer pool.close()
 
 	errCh := make(chan error)
 
@@ -99,7 +99,7 @@ func main() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
-			errCh <- err // error running the http server -> panic
+			errCh <- err
 			return
 		}
 	}()
@@ -108,8 +108,8 @@ func main() {
 
 	select {
 	case err = <-errCh:
-		log.Panicf("[websockets error]: error running http server: %s\n", err.Error()) // error running the http server -> panic
+		log.Panicf("error running http server: %s\n", err.Error())
 	case <-sigCh:
-		fmt.Println("starting graceful shutdown")
+		fmt.Println("starting graceful shutdown...")
 	}
 }

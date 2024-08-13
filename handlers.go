@@ -21,7 +21,7 @@ type indexTemplateData struct {
 	Email             string
 	BuyMeACoffeeURL   string
 	WebsocketURL      string
-	TotalCheckboxes   int
+	TotalCheckboxes   uint32
 	ReconnectInterval int
 }
 
@@ -58,6 +58,6 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler := newConnectionHandler(con)
+	handler := newWebsocketHandler(con)
 	handler.run()
 }

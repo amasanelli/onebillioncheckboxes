@@ -7,29 +7,29 @@ import (
 )
 
 type handlersPool struct {
-	handlers map[*connectionHandler]struct{}
+	handlers map[*websocketHandler]struct{}
 	mutex    *sync.Mutex
 }
 
 func newHandlersPool() *handlersPool {
-	return &handlersPool{handlers: make(map[*connectionHandler]struct{}), mutex: &sync.Mutex{}}
+	return &handlersPool{handlers: make(map[*websocketHandler]struct{}), mutex: &sync.Mutex{}}
 }
 
-func (p *handlersPool) Add(handler *connectionHandler) {
+func (p *handlersPool) add(handler *websocketHandler) {
 	p.mutex.Lock()
 	p.handlers[handler] = struct{}{}
 	p.mutex.Unlock()
 }
 
-func (p *handlersPool) Remove(handler *connectionHandler) {
+func (p *handlersPool) remove(handler *websocketHandler) {
 	p.mutex.Lock()
 	delete(p.handlers, handler)
 	p.mutex.Unlock()
 }
 
-func (p *handlersPool) Close() {
+func (p *handlersPool) close() {
 	for handler := range p.handlers {
-		handler.send <- message{messageType: websocket.CloseMessage, message: websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "")}
+		handler.send <- messageDTO{messageType: websocket.CloseMessage, message: websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "")}
 		handler.close()
 	}
 }
