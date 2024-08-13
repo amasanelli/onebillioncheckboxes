@@ -12,17 +12,15 @@ services:
       timeout: 3s
       retries: 3
 
-  # auth:
-  #   build:
-  #     context: ./
-  #     dockerfile: ./dockerfile
-  #   restart: always
-  #   ports:
-  #     - "3003:80"
-  #   env_file:
-  #     - $ENV_FILE_PATH
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #     mongo-setup:
-  #       condition: service_completed_successfully
+  app:
+    build:
+      context: ./
+      dockerfile: ./dockerfile
+    restart: always
+    ports:
+      - "3000:80"
+    env_file:
+      - $ENV_FILE_PATH
+    depends_on:
+      redis:
+        condition: service_healthy
