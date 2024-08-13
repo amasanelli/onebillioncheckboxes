@@ -38,10 +38,10 @@ func newConnectionHandler(connection *websocket.Conn) *connectionHandler {
 		return nil
 	})
 
-	connection.SetWriteDeadline(time.Now().Add(writeTimeout))
+	connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
 
 	connection.SetPongHandler(func(string) error {
-		connection.SetWriteDeadline(time.Now().Add(writeTimeout))
+		connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
 		return nil
 	})
 
@@ -196,7 +196,7 @@ func (h *connectionHandler) listen() {
 func (h *connectionHandler) write() {
 	defer h.close()
 
-	ticker := time.NewTicker(pingInterval)
+	ticker := time.NewTicker(PING_INTERVAL)
 	defer ticker.Stop()
 
 	for {

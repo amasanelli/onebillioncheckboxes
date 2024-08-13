@@ -6,30 +6,30 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type connectionsPool struct {
-	connectionsHandlers map[*connectionHandler]struct{}
-	mutex               *sync.Mutex
+type handlersPool struct {
+	handlers map[*connectionHandler]struct{}
+	mutex    *sync.Mutex
 }
 
-func newConnectionsPool() *connectionsPool {
-	return &connectionsPool{connectionsHandlers: make(map[*connectionHandler]struct{}), mutex: &sync.Mutex{}}
+func newHandlersPool() *handlersPool {
+	return &handlersPool{handlers: make(map[*connectionHandler]struct{}), mutex: &sync.Mutex{}}
 }
 
-func (h *connectionsPool) Add(connectionHandler *connectionHandler) {
-	h.mutex.Lock()
-	h.connectionsHandlers[connectionHandler] = struct{}{}
-	h.mutex.Unlock()
+func (p *handlersPool) Add(handler *connectionHandler) {
+	p.mutex.Lock()
+	p.handlers[handler] = struct{}{}
+	p.mutex.Unlock()
 }
 
-func (h *connectionsPool) Remove(connectionHandler *connectionHandler) {
-	h.mutex.Lock()
-	delete(h.connectionsHandlers, connectionHandler)
-	h.mutex.Unlock()
+func (p *handlersPool) Remove(handler *connectionHandler) {
+	p.mutex.Lock()
+	delete(p.handlers, handler)
+	p.mutex.Unlock()
 }
 
-func (h *connectionsPool) Close() {
-	for connectionHandler := range h.connectionsHandlers {
-		connectionHandler.send <- message{messageType: websocket.CloseMessage, message: websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "")}
-		connectionHandler.close()
+func (p *handlersPool) Close() {
+	for handler := range p.handlers {
+		handler.send <- message{messageType: websocket.CloseMessage, message: websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "")}
+		handler.close()
 	}
 }

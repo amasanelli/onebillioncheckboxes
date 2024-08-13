@@ -17,9 +17,25 @@ func handlePing(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+type indexTemplateData struct {
+	Email             string
+	BuyMeACoffeeURL   string
+	WebsocketURL      string
+	TotalCheckboxes   int
+	ReconnectInterval int
+}
+
 func handleGet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "[method not allowed]", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if r.URL.Path == "/" {
+		if err := indexTemplate.Execute(w, indexTemplateData{Email: envData.EMAIL, BuyMeACoffeeURL: envData.BUY_ME_A_COFFEE_URL, WebsocketURL: envData.WEBSOCKET_URL, TotalCheckboxes: TotalCheckboxes, ReconnectInterval: int(ReconnectInterval.Milliseconds())}); err != nil {
+			http.Error(w, "[internal server error]: error executing template", http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 
@@ -36,12 +52,12 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
-	connection, err := upg.Upgrade(w, r, nil)
+	con, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("[websockets error]: upgrade error: %s\n", err.Error())
 		return
 	}
 
-	connectionHandler := newConnectionHandler(connection)
-	connectionHandler.run()
+	handler := newConnectionHandler(con)
+	handler.run()
 }

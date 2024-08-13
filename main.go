@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"text/template"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/go-playground/validator/v10"
@@ -17,34 +18,43 @@ import (
 )
 
 type envSchema struct {
-	SERVER_ADDRESS string `env:"SERVER_ADDRESS" validate:"required"`
-	REDIS_URI      string `env:"REDIS_URI" validate:"required"`
+	SERVER_ADDRESS      string `env:"SERVER_ADDRESS" validate:"required"`
+	REDIS_URI           string `env:"REDIS_URI" validate:"required"`
+	EMAIL               string `env:"EMAIL" validate:"required"`
+	BUY_ME_A_COFFEE_URL string `env:"BUY_ME_A_COFFEE_URL" validate:"required"`
+	WEBSOCKET_URL       string `env:"WEBSOCKET_URL" validate:"required"`
 }
 
 var envData *envSchema
 var validate *validator.Validate
 var rCli *redis.Client
-var pool *connectionsPool
-var upg *websocket.Upgrader
+var pool *handlersPool
+var upgrader *websocket.Upgrader
+var indexTemplate *template.Template
 
 func main() {
+	var err error
+
 	envData = &envSchema{}
 
 	validate = validator.New(validator.WithRequiredStructEnabled())
 
-	if err := godotenv.Load(ENV_FILE_PATH); err != nil {
+	err = godotenv.Load(ENV_FILE_PATH)
+	if err != nil {
 		fmt.Println(err)
 	}
 
-	if err := env.Parse(envData); err != nil {
+	err = env.Parse(envData)
+	if err != nil {
 		panic(err)
 	}
 
-	if err := validate.Struct(envData); err != nil {
+	err = validate.Struct(envData)
+	if err != nil {
 		panic(err)
 	}
 
-	upg = &websocket.Upgrader{
+	upgrader = &websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
@@ -57,15 +67,16 @@ func main() {
 
 	rCli = redis.NewClient(rOpts)
 
-	if err := rCli.Ping(context.Background()).Err(); err != nil {
+	err = rCli.Ping(context.Background()).Err()
+	if err != nil {
 		panic(fmt.Errorf("error pinging database: %s", err.Error()))
 	}
 	defer rCli.Close()
 
-	errCh := make(chan error)
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	indexTemplate, err = template.ParseFiles("./templates/index.html")
+	if err != nil {
+		panic(err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", handleWebsocket)
@@ -78,8 +89,13 @@ func main() {
 	}
 	defer srv.Shutdown(context.Background())
 
-	pool = newConnectionsPool()
+	pool = newHandlersPool()
 	defer pool.Close()
+
+	errCh := make(chan error)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil {
@@ -91,7 +107,7 @@ func main() {
 	fmt.Println("running...")
 
 	select {
-	case err := <-errCh:
+	case err = <-errCh:
 		log.Panicf("[websockets error]: error running http server: %s\n", err.Error()) // error running the http server -> panic
 	case <-sigCh:
 		fmt.Println("starting graceful shutdown")
