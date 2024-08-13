@@ -36,8 +36,6 @@ func newWebsocketHandler(connection *websocket.Conn) *websocketHandler {
 		once:       once,
 	}
 
-	pool.add(handler)
-
 	return handler
 }
 
@@ -74,7 +72,6 @@ func (h *websocketHandler) run() {
 func (h *websocketHandler) close() {
 	h.once.Do(func() {
 		close(h.done)
-		pool.remove(h)
 		h.connection.Close()
 	})
 }

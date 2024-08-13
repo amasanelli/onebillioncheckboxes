@@ -28,7 +28,6 @@ type envSchema struct {
 var envData *envSchema
 var validate *validator.Validate
 var rCli *redis.Client
-var pool *handlersPool
 var upgrader *websocket.Upgrader
 var indexTemplate *template.Template
 
@@ -88,9 +87,6 @@ func main() {
 		Handler: mux,
 	}
 	defer srv.Shutdown(context.Background())
-
-	pool = newHandlersPool()
-	defer pool.close()
 
 	errCh := make(chan error)
 
