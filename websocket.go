@@ -180,11 +180,11 @@ func (h *websocketHandler) listen() {
 
 	for {
 		select {
-		case msg, ok := <-pubsub.Channel():
+		case message, ok := <-pubsub.Channel():
 			if !ok {
 				return
 			}
-			h.send <- messageDTO{messageType: websocket.BinaryMessage, message: []uint8(msg.Payload)}
+			h.send <- messageDTO{messageType: websocket.BinaryMessage, message: []uint8(message.Payload)}
 
 		case <-h.done:
 			return
