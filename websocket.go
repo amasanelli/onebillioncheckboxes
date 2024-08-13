@@ -102,7 +102,7 @@ func (h *websocketHandler) read() {
 		}
 
 		if uint32SliceLen == 1 {
-			if uint32Slice[0] < 1 || uint32Slice[0] > TotalCheckboxes {
+			if uint32Slice[0] < 1 || uint32Slice[0] > TOTAL_CHECKBOXES {
 				continue
 			}
 
@@ -132,7 +132,7 @@ func (h *websocketHandler) read() {
 			}
 		} else {
 			// uint32SliceLen == 2
-			if uint32Slice[0] < 1 || uint32Slice[0] > TotalCheckboxes || uint32Slice[1] < uint32Slice[0] || uint32Slice[1] > TotalCheckboxes {
+			if uint32Slice[0] < 1 || uint32Slice[0] > TOTAL_CHECKBOXES || uint32Slice[1] < uint32Slice[0] || uint32Slice[1] > TOTAL_CHECKBOXES {
 				continue
 			}
 

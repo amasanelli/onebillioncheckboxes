@@ -32,7 +32,7 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == "/" {
-		if err := indexTemplate.Execute(w, indexTemplateData{Email: envData.EMAIL, BuyMeACoffeeURL: envData.BUY_ME_A_COFFEE_URL, WebsocketURL: envData.WEBSOCKET_URL, TotalCheckboxes: TotalCheckboxes, ReconnectInterval: int(ReconnectInterval.Milliseconds())}); err != nil {
+		if err := indexTemplate.Execute(w, indexTemplateData{Email: envData.EMAIL, BuyMeACoffeeURL: envData.BUY_ME_A_COFFEE_URL, WebsocketURL: envData.WEBSOCKET_URL, TotalCheckboxes: TOTAL_CHECKBOXES, ReconnectInterval: int(RECONNECT_INTERVAL.Milliseconds())}); err != nil {
 			http.Error(w, "[internal server error]: error executing template", http.StatusInternalServerError)
 			return
 		}
