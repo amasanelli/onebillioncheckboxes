@@ -19,40 +19,36 @@ type messageDTO struct {
 
 type websocketHandler struct {
 	connection *websocket.Conn
-	send       chan messageDTO
+	send       chan *messageDTO
 	done       chan struct{}
 	once       *sync.Once
 }
 
-func newWebsocketHandler(connection *websocket.Conn) *websocketHandler {
-	send := make(chan messageDTO)
+func handleWebsocketConnection(connection *websocket.Conn) {
+	send := make(chan *messageDTO, BUFFERS_SIZE)
 	done := make(chan struct{})
 	once := &sync.Once{}
 
-	handler := &websocketHandler{
+	h := &websocketHandler{
 		connection: connection,
 		send:       send,
 		done:       done,
 		once:       once,
 	}
 
-	return handler
-}
-
-func (h *websocketHandler) run() {
-	go h.listen()
-	go h.read()
-	go h.write()
+	go h.listener()
+	go h.reader()
+	go h.writer()
 
 	h.connection.SetPingHandler(func(msg string) error {
-		h.send <- messageDTO{messageType: websocket.PongMessage, message: []uint8(msg)}
+		h.queue(&messageDTO{messageType: websocket.PongMessage, message: []uint8(msg)})
 		return nil
 	})
 
-	h.connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
+	h.connection.SetReadDeadline(time.Now().Add(READ_TIMEOUT))
 
 	h.connection.SetPongHandler(func(string) error {
-		h.connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
+		h.connection.SetReadDeadline(time.Now().Add(READ_TIMEOUT))
 		return nil
 	})
 
@@ -66,17 +62,18 @@ func (h *websocketHandler) run() {
 	uint32Checks := uint32(checks)
 	binary.LittleEndian.PutUint32(uint8Slice, uint32Checks)
 
-	h.send <- messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice}
+	h.queue(&messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice})
 }
 
 func (h *websocketHandler) close() {
 	h.once.Do(func() {
 		close(h.done)
+		h.send = nil
 		h.connection.Close()
 	})
 }
 
-func (h *websocketHandler) read() {
+func (h *websocketHandler) reader() {
 	defer h.close()
 
 	for {
@@ -130,8 +127,7 @@ func (h *websocketHandler) read() {
 			if err := rCli.Publish(context.Background(), REDIS_CHANNEL, uint8Slice).Err(); err != nil {
 				log.Printf("[redis error]: error publishing checkbox: %s\n", err.Error())
 			}
-		} else {
-			// uint32SliceLen == 2
+		} else { // uint32SliceLen == 2
 			if uint32Slice[0] < 1 || uint32Slice[0] > TOTAL_CHECKBOXES || uint32Slice[1] < uint32Slice[0] || uint32Slice[1] > TOTAL_CHECKBOXES {
 				continue
 			}
@@ -164,24 +160,27 @@ func (h *websocketHandler) read() {
 				uint8Slice[byteIndex+4] |= (1 << (bitIndex % 8))
 			}
 
-			h.send <- messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice}
+			h.queue(&messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice})
 		}
 	}
 }
 
-func (h *websocketHandler) listen() {
+func (h *websocketHandler) listener() {
 	defer h.close()
 
-	pubsub := rCli.Subscribe(context.Background(), REDIS_CHANNEL)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pubsub := rCli.Subscribe(ctx, REDIS_CHANNEL)
 	defer pubsub.Close()
 
 	for {
 		select {
-		case message, ok := <-pubsub.Channel():
+		case message, ok := <-pubsub.Channel(redis.WithChannelSize(BUFFERS_SIZE), redis.WithChannelSendTimeout(WRITE_TIMEOUT)):
 			if !ok {
 				return
 			}
-			h.send <- messageDTO{messageType: websocket.BinaryMessage, message: []uint8(message.Payload)}
+			h.queue(&messageDTO{messageType: websocket.BinaryMessage, message: []uint8(message.Payload)})
 
 		case <-h.done:
 			return
@@ -189,7 +188,18 @@ func (h *websocketHandler) listen() {
 	}
 }
 
-func (h *websocketHandler) write() {
+func (h *websocketHandler) queue(message *messageDTO) {
+	timer := time.NewTimer(WRITE_TIMEOUT)
+	defer timer.Stop()
+
+	select {
+	case h.send <- message:
+	case <-timer.C:
+	case <-h.done:
+	}
+}
+
+func (h *websocketHandler) writer() {
 	defer h.close()
 
 	ticker := time.NewTicker(PING_INTERVAL)
@@ -198,12 +208,16 @@ func (h *websocketHandler) write() {
 	for {
 		select {
 		case message := <-h.send:
+			h.connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
+
 			if err := h.connection.WriteMessage(message.messageType, message.message); err != nil {
 				log.Printf("[websockets error]: error sending message to client: %s\n", err.Error())
 				return
 			}
 
 		case <-ticker.C:
+			h.connection.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
+
 			if err := h.connection.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Printf("[websockets error]: error sending ping message to client: %s\n", err.Error())
 				return

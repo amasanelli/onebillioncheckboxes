@@ -44,7 +44,7 @@ func handleGet(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "[not found]", http.StatusNotFound)
 			return
 		}
-		http.Error(w, "[internal server error]", http.StatusInternalServerError)
+		http.Error(w, "[internal server error]: error loading file", http.StatusInternalServerError)
 		return
 	}
 
@@ -58,6 +58,5 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	handler := newWebsocketHandler(con)
-	handler.run()
+	handleWebsocketConnection(con)
 }

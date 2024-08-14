@@ -20,7 +20,7 @@ type envSchema struct {
 }
 
 const (
-	TOTAL_CHECKBOXES uint32 = 100_000
+	TOTAL_CHECKBOXES uint32 = 1_000_000_000
 	ENV_FILE_PATH    string = "./.env"
 )
 

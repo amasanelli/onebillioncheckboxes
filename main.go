@@ -52,7 +52,9 @@ func main() {
 	}
 
 	rCli = redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: envData.REDIS_ADDRESSES,
+		Addrs:          envData.REDIS_ADDRESSES,
+		PoolSize:       REDIS_POOL_SIZE,
+		MaxActiveConns: REDIS_MAX_ACTIVE_CONNECTIONS,
 		NewClient: func(opt *redis.Options) *redis.Client {
 			if len(envData.REDIS_ADDRESSES_REMAP) > 0 {
 				opt.Addr = envData.REDIS_ADDRESSES_REMAP[opt.Addr]
@@ -65,13 +67,13 @@ func main() {
 		return shard.Ping(ctx).Err()
 	})
 	if err != nil {
-		panic(fmt.Errorf("error pinging database: %s", err.Error()))
+		panic(fmt.Errorf("[redis error]: error pinging database: %s", err.Error()))
 	}
 	defer rCli.Close()
 
 	indexTemplate, err = template.ParseFiles("./templates/index.html")
 	if err != nil {
-		panic(fmt.Errorf("error parsing index template: %s", err.Error()))
+		panic(fmt.Errorf("[internal server error]: error parsing index template: %s", err.Error()))
 	}
 
 	mux := http.NewServeMux()
@@ -101,7 +103,7 @@ func main() {
 
 	select {
 	case err = <-errCh:
-		log.Panicf("error running http server: %s\n", err.Error())
+		log.Panicf("[internal server error]: error running http server: %s\n", err.Error())
 	case <-sigCh:
 		fmt.Println("starting graceful shutdown...")
 	}
