@@ -6,3 +6,7 @@ EMAIL=""
 BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="ws://localhost:3003/ws"
 ```
+
+# Testing
+
+`k6 -e WEBSOCKET_URL="ws://localhost:3000/ws" run k6.js`
