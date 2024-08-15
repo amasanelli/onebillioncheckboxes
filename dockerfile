@@ -12,7 +12,7 @@ RUN chmod +x ./onebillioncheckboxes
 
 ####
 
-FROM scratch
+FROM golang:alpine
 
 WORKDIR /app
 
