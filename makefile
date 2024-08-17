@@ -1,9 +1,16 @@
 #!make
 
-start:s
-	ENV_FILE_PATH="./docker-compose.env" docker-compose -f ./docker-compose.yml up -d redis-1 redis-2 redis-3
+start-cloud:
+	ENV_FILE_PATH="./cloud.docker-compose.env" docker-compose -f ./cloud.docker-compose.yml up -d redis-1 redis-2 redis-3
 	@sleep 5
-	echo "yes" | ENV_FILE_PATH="./docker-compose.env" docker-compose -f ./docker-compose.yml exec -T redis-1 /bin/bash -c "redis-cli --cluster create 172.28.0.101:6379 172.28.0.102:6379 172.28.0.103:6379 --cluster-replicas 0"
+	echo "yes" | ENV_FILE_PATH="./cloud.docker-compose.env" docker-compose -f ./cloud.docker-compose.yml exec -T redis-1 /bin/bash -c "redis-cli --cluster create 172.28.0.101:6379 172.28.0.102:6379 172.28.0.103:6379 --cluster-replicas 0"
 	@sleep 5
-	ENV_FILE_PATH="./docker-compose.env" docker-compose -f ./docker-compose.yml up -d
+	ENV_FILE_PATH="./cloud.docker-compose.env" docker-compose -f ./cloud.docker-compose.yml up -d
+	@echo "All containers started!"
+
+start-local:
+	docker-compose -f ./local.docker-compose.yml up -d redis-1 redis-2 redis-3
+	@sleep 5
+	echo "yes" | docker-compose -f ./local.docker-compose.yml exec -T redis-1 /bin/bash -c "redis-cli --cluster create 172.28.0.101:6379 172.28.0.102:6379 172.28.0.103:6379 --cluster-replicas 0"
+	@sleep 5
 	@echo "All containers started!"

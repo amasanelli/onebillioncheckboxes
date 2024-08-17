@@ -9,7 +9,7 @@ BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="ws://localhost:3003/ws"
 ```
 
-# docker-compose.env
+# cloud.docker-compose.env
 
 ```
 EMAIL="
