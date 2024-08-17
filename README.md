@@ -1,3 +1,5 @@
+# .env
+
 ```
 REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
 REDIS_ADDRESSES_REMAP="172.28.0.101:6379|:6371,172.28.0.102:6379|:6372,172.28.0.103:6379|:6373"
@@ -7,6 +9,20 @@ BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="ws://localhost:3003/ws"
 ```
 
+# docker-compose.env
+
+```
+REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
+SERVER_ADDRESS=":80"
+EMAIL="
+BUY_ME_A_COFFEE_URL=""
+WEBSOCKET_URL="wss://localhost/ws"
+```
+
 # Testing
 
 `k6 -e WEBSOCKET_URL="ws://localhost:3000/ws" run k6.js`
+
+# Self-signed certificate
+
+`openssl req -nodes -keyout onebillioncheckboxes.key -out onebillioncheckboxes.crt -days 365 -new -subj "/CN=onebillioncheckboxes.com" -x509`
