@@ -1,0 +1,17 @@
+FROM redis
+
+RUN mkdir /redis
+
+WORKDIR /redis
+
+COPY ./redis/redis.conf /etc/redis/redis.conf
+
+COPY ./redis/entrypoint.sh ./entrypoint.sh
+
+RUN chmod +x ./entrypoint.sh
+
+EXPOSE 6379
+
+EXPOSE 16379
+
+ENTRYPOINT [ "./entrypoint.sh" ]

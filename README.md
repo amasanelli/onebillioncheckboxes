@@ -12,8 +12,6 @@ WEBSOCKET_URL="ws://localhost:3003/ws"
 # docker-compose.env
 
 ```
-REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
-SERVER_ADDRESS=":80"
 EMAIL="
 BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="wss://localhost/ws"

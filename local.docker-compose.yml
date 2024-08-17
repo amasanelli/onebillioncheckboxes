@@ -1,0 +1,92 @@
+name: onebillioncheckboxes
+
+services:
+  redis-1:
+    build:
+      context: ./
+      dockerfile: ./redis/dockerfile
+    restart: always
+    environment:
+      - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.101
+    volumes:
+      - redis-1-data:/data
+    ports:
+      - 6371:6379
+      - 16371:16379
+    networks:
+      bridge_network:
+        ipv4_address: 172.28.0.101
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  redis-2:
+    build:
+      context: ./
+      dockerfile: ./redis/dockerfile
+    restart: always
+    environment:
+      - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.102
+    volumes:
+      - redis-2-data:/data
+    ports:
+      - 6372:6379
+      - 16372:16379
+    networks:
+      bridge_network:
+        ipv4_address: 172.28.0.102
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  redis-3:
+    build:
+      context: ./
+      dockerfile: ./redis/dockerfile
+    restart: always
+    environment:
+      - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.103
+    volumes:
+      - redis-3-data:/data
+    ports:
+      - 6373:6379
+      - 16373:16379
+    networks:
+      bridge_network:
+        ipv4_address: 172.28.0.103
+    healthcheck:
+      test: redis-cli ping
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  redisinsight:
+    image: redislabs/redisinsight
+    ports:
+      - 5540:5540
+    networks:
+      bridge_network:
+    depends_on:
+      redis-1:
+        condition: service_healthy
+      redis-2:
+        condition: service_healthy
+      redis-3:
+        condition: service_healthy
+
+networks:
+  bridge_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+
+volumes:
+  redis-1-data:
+  redis-2-data:
+  redis-3-data:

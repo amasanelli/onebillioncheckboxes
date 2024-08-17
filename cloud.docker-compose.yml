@@ -2,14 +2,14 @@ name: onebillioncheckboxes
 
 services:
   redis-1:
-    image: redis
-    command: ["redis-server", "/etc/redis/redis.conf"]
+    build:
+      context: ./
+      dockerfile: ./redis/dockerfile
+    restart: always
+    environment:
+      - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.101
     volumes:
       - redis-1-data:/data
-      - ./redis/node-1/redis.conf:/etc/redis/redis.conf
-    ports:
-      - 6371:6379
-      - 16371:16379
     networks:
       bridge_network:
         ipv4_address: 172.28.0.101
@@ -20,14 +20,14 @@ services:
       retries: 3
 
   redis-2:
-    image: redis
-    command: ["redis-server", "/etc/redis/redis.conf"]
+    build:
+      context: ./
+      dockerfile: ./redis/dockerfile
+    restart: always
+    environment:
+      - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.102
     volumes:
       - redis-2-data:/data
-      - ./redis/node-2/redis.conf:/etc/redis/redis.conf
-    ports:
-      - 6372:6379
-      - 16372:16379
     networks:
       bridge_network:
         ipv4_address: 172.28.0.102
@@ -38,14 +38,14 @@ services:
       retries: 3
 
   redis-3:
-    image: redis
-    command: ["redis-server", "/etc/redis/redis.conf"]
+    build:
+      context: ./
+      dockerfile: ./redis/dockerfile
+    restart: always
+    environment:
+      - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.103
     volumes:
       - redis-3-data:/data
-      - ./redis/node-3/redis.conf:/etc/redis/redis.conf
-    ports:
-      - 6373:6379
-      - 16373:16379
     networks:
       bridge_network:
         ipv4_address: 172.28.0.103
@@ -55,25 +55,14 @@ services:
       timeout: 3s
       retries: 3
 
-  redisinsight:
-    image: redislabs/redisinsight
-    ports:
-      - 5540:5540
-    networks:
-      bridge_network:
-    depends_on:
-      redis-1:
-        condition: service_healthy
-      redis-2:
-        condition: service_healthy
-      redis-3:
-        condition: service_healthy
-
   app-1:
     build:
       context: ./
       dockerfile: ./dockerfile
     restart: always
+    environment:
+      - REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
+      - SERVER_ADDRESS=":80"
     env_file:
       - $ENV_FILE_PATH
     networks:
@@ -96,6 +85,9 @@ services:
       context: ./
       dockerfile: ./dockerfile
     restart: always
+    environment:
+      - REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
+      - SERVER_ADDRESS=":80"
     env_file:
       - $ENV_FILE_PATH
     networks:
@@ -118,6 +110,9 @@ services:
       context: ./
       dockerfile: ./dockerfile
     restart: always
+    environment:
+      - REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
+      - SERVER_ADDRESS=":80"
     env_file:
       - $ENV_FILE_PATH
     networks:
