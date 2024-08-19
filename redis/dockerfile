@@ -1,5 +1,7 @@
 FROM redis:alpine
 
+RUN apk update && apk --no-cache add bash
+
 RUN mkdir /redis
 
 WORKDIR /redis

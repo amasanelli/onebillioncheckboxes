@@ -122,12 +122,13 @@ services:
     image: nginx
     command: ["nginx", "-g", "daemon off;"]
     ports:
-      - "80:80"
-      - "443:443"
+      - 80:80
+      - 443:443
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/onebillioncheckboxes.crt:/etc/nginx/ssl/onebillioncheckboxes.crt
-      - ./nginx/onebillioncheckboxes.key:/etc/nginx/ssl/onebillioncheckboxes.key
+      - /var/www/certbot:/var/www/certbot
+      - /etc/letsencrypt/live/billionchecks.com/fullchain.pem:/etc/letsencrypt/live/billionchecks.com/fullchain.pem
+      - /etc/letsencrypt/live/billionchecks.com/privkey.pem:/etc/letsencrypt/live/billionchecks.com/privkey.pem
     networks:
       bridge_network:
     depends_on:
