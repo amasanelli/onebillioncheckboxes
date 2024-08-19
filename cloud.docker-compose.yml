@@ -2,9 +2,7 @@ name: onebillioncheckboxes
 
 services:
   redis-1:
-    build:
-      context: ./
-      dockerfile: ./redis/dockerfile
+    image: australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/redis
     restart: always
     environment:
       - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.101
@@ -20,9 +18,7 @@ services:
       retries: 3
 
   redis-2:
-    build:
-      context: ./
-      dockerfile: ./redis/dockerfile
+    image: australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/redis
     restart: always
     environment:
       - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.102
@@ -38,9 +34,7 @@ services:
       retries: 3
 
   redis-3:
-    build:
-      context: ./
-      dockerfile: ./redis/dockerfile
+    image: australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/redis
     restart: always
     environment:
       - REDIS_CLUSTER_ANNOUNCE_IP=172.28.0.103
@@ -56,13 +50,11 @@ services:
       retries: 3
 
   app-1:
-    build:
-      context: ./
-      dockerfile: ./dockerfile
+    image: australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/app
     restart: always
     environment:
-      - REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
-      - SERVER_ADDRESS=":80"
+      - REDIS_ADDRESSES=172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379
+      - SERVER_ADDRESS=:80
     env_file:
       - $ENV_FILE_PATH
     networks:
@@ -81,13 +73,11 @@ services:
         condition: service_healthy
 
   app-2:
-    build:
-      context: ./
-      dockerfile: ./dockerfile
+    image: australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/app
     restart: always
     environment:
-      - REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
-      - SERVER_ADDRESS=":80"
+      - REDIS_ADDRESSES=172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379
+      - SERVER_ADDRESS=:80
     env_file:
       - $ENV_FILE_PATH
     networks:
@@ -106,13 +96,11 @@ services:
         condition: service_healthy
 
   app-3:
-    build:
-      context: ./
-      dockerfile: ./dockerfile
+    image: australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/app
     restart: always
     environment:
-      - REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
-      - SERVER_ADDRESS=":80"
+      - REDIS_ADDRESSES=172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379
+      - SERVER_ADDRESS=:80
     env_file:
       - $ENV_FILE_PATH
     networks:
