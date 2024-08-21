@@ -20,7 +20,7 @@ type envSchema struct {
 	SERVER_ADDRESS        string            `env:"SERVER_ADDRESS,required"`
 	REDIS_ADDRESSES       []string          `env:"REDIS_ADDRESSES,required"`
 	REDIS_ADDRESSES_REMAP map[string]string `env:"REDIS_ADDRESSES_REMAP" envKeyValSeparator:"|"`
-	EMAIL                 string            `env:"EMAIL,required"`
+	ME_URL                string            `env:"ME_URL,required"`
 	BUY_ME_A_COFFEE_URL   string            `env:"BUY_ME_A_COFFEE_URL,required"`
 	WEBSOCKET_URL         string            `env:"WEBSOCKET_URL,required"`
 }

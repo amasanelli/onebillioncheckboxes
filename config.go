@@ -14,4 +14,6 @@ const (
 	REDIS_POOL_SIZE              int           = 100
 	REDIS_MAX_ACTIVE_CONNECTIONS int           = REDIS_POOL_SIZE
 	BUFFERS_SIZE                 int           = 4096
+	LIMITER_LIMIT                int           = 3
+	LIMITER_BURST                int           = 3
 )
