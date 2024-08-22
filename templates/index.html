@@ -109,12 +109,9 @@
         margin: 5px;
       }
 
-      input[type="checkbox"].disabled {
-        pointer-events: none;
-      }
-
       input[type="checkbox"].waiting {
         opacity: 0.5;
+        cursor: wait;
       }
 
       #footer {
@@ -364,8 +361,10 @@
               if (checked) {
                 checkbox.checked = true;
               } else {
-                checkbox.classList.remove("disabled");
+                checkbox.enabled = true;
               }
+
+              checkbox.classList.remove("waiting");
 
               id++;
             }
@@ -497,17 +496,24 @@
         input.type = "checkbox";
         input.id = `c${id}`;
         input.title = id;
-        input.classList.add("disabled");
+        input.enabled = false;
+        input.classList.add("waiting");
 
         input.addEventListener("keydown", (event) => {
-          if (event.target.classList.contains("disabled")) {
+          if (!event.target.enabled) {
+            event.preventDefault();
+          }
+        });
+
+        input.addEventListener("click", (event) => {
+          if (!event.target.enabled) {
             event.preventDefault();
           }
         });
 
         input.addEventListener("change", (event) => {
           if (event.target.checked) {
-            event.target.classList.add("disabled");
+            event.target.enabled = false;
             event.target.classList.add("waiting");
             postData(parseInt(event.target.id.slice(1)));
           }
