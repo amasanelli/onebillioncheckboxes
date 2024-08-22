@@ -23,6 +23,8 @@ type envSchema struct {
 	ME_URL                string            `env:"ME_URL,required"`
 	BUY_ME_A_COFFEE_URL   string            `env:"BUY_ME_A_COFFEE_URL,required"`
 	WEBSOCKET_URL         string            `env:"WEBSOCKET_URL,required"`
+	LIMITER_LIMIT         int               `env:"LIMITER_LIMIT,required"`
+	LIMITER_BURST         int               `env:"LIMITER_BURST,required"`
 }
 
 var envData *envSchema

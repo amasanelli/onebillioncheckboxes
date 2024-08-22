@@ -30,7 +30,7 @@ func handleWebsocketConnection(connection *websocket.Conn) {
 	send := make(chan *messageDTO, BUFFERS_SIZE)
 	done := make(chan struct{})
 	once := &sync.Once{}
-	limiter := rate.NewLimiter(rate.Limit(LIMITER_LIMIT), LIMITER_BURST)
+	limiter := rate.NewLimiter(rate.Limit(envData.LIMITER_LIMIT), envData.LIMITER_BURST)
 
 	h := &websocketHandler{
 		connection: connection,
