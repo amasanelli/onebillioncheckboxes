@@ -158,7 +158,11 @@ func (h *websocketHandler) reader() {
 				return
 			}
 
-			// TODO -  limit the number
+			checkboxes := uint32Slice[1] - uint32Slice[0] + 1
+
+			if checkboxes > MAX_CHECKBOXES_PER_REQUEST {
+				return
+			}
 
 			minCheckbox := strconv.FormatUint(uint64(uint32Slice[0]), 10)
 			maxCheckbox := strconv.FormatUint(uint64(uint32Slice[1]), 10)
@@ -183,7 +187,7 @@ func (h *websocketHandler) reader() {
 				strSliceCheckboxes = append(strSliceCheckboxes, strSliceCheckboxesMax...)
 			}
 
-			uint8SliceLen := uint32Slice[1] - uint32Slice[0] + 1 + 4
+			uint8SliceLen := (checkboxes+7)/8 + 4
 			uint8Slice := make([]uint8, uint8SliceLen)
 
 			for i := 0; i < 4; i++ {

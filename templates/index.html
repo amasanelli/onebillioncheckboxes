@@ -177,8 +177,9 @@
     <script>
       const totalCheckboxes = parseInt("{{.TotalCheckboxes}}");
       const reconnectInterval = parseInt("{{.ReconnectInterval}}");
+      const maxCheckboxesPerRequest = parseInt("{{.MaxCheckboxesPerRequest}}");
       const checkboxSize = 30;
-      const extraRowsToRender = 10;
+      const maxExtraRowsToRender = 20;
 
       let websocket;
       const scrollable = document.getElementById("scrollable");
@@ -189,6 +190,9 @@
 
       const rowsPerScreen = Math.floor(scrollable.clientHeight / checkboxSize);
       const checkboxesPerRow = Math.floor(rowsContainer.clientWidth / checkboxSize);
+      const checkboxesPerScreen = rowsPerScreen * checkboxesPerRow;
+      const extraCheckboxes = Math.floor((maxCheckboxesPerRequest - checkboxesPerScreen) / 2);
+      const extraRowsToRender = Math.min(maxExtraRowsToRender, Math.floor(extraCheckboxes / checkboxesPerRow));
       const bottomRow = Math.ceil(totalCheckboxes / checkboxesPerRow);
       const firstRowOfBottomScreen = bottomRow - (rowsPerScreen - 1);
 
