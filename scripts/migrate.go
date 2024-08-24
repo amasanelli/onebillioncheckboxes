@@ -91,10 +91,4 @@ func main() {
 	}
 
 	fmt.Println("counter: ok")
-
-	if err := rCli.Del(context.Background(), REDIS_CHECKS_KEY).Err(); err != nil {
-		panic(err)
-	}
-
-	fmt.Println("old key deletion: ok")
 }
