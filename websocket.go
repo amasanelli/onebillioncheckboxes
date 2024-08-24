@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"strconv"
 	"sync"
@@ -56,14 +57,20 @@ func handleWebsocketConnection(connection *websocket.Conn) {
 		return nil
 	})
 
-	checks, err := rCli.ZCard(context.Background(), REDIS_KEY).Result()
+	strChecks, err := rCli.Get(context.Background(), REDIS_CHECKS_COUNT_KEY).Result()
 	if err != nil {
-		log.Printf("[redis error]: error getting checks: %s\n", err.Error())
+		log.Printf("[redis error]: error getting checks count: %s\n", err.Error())
 		return
 	}
-	uint32Checks := uint32(checks)
+	int64Checks, err := strconv.ParseInt(strChecks, 10, 64)
+	if err != nil {
+		log.Printf("[redis error]: error parsing checks count: %s\n", err.Error())
+		return
+	}
+	uint32Checks := uint32(int64Checks)
 
 	uint8Slice := make([]uint8, 4)
+
 	binary.LittleEndian.PutUint32(uint8Slice, uint32Checks)
 
 	h.queue(&messageDTO{messageType: websocket.BinaryMessage, message: uint8Slice})
@@ -113,8 +120,10 @@ func (h *websocketHandler) reader() {
 
 			strCheckbox := strconv.FormatUint(uint64(uint32Slice[0]), 10)
 			float64Checkbox := float64(uint32Slice[0])
+			keyIndex := (uint32Slice[0] - 1) / REDIS_CHECKS_PER_KEY
+			key := fmt.Sprintf("%s_%d", REDIS_CHECKS_KEY, keyIndex)
 
-			newMembers, err := rCli.ZAdd(context.Background(), REDIS_KEY, redis.Z{Score: float64Checkbox, Member: strCheckbox}).Result()
+			newMembers, err := rCli.ZAdd(context.Background(), key, redis.Z{Score: float64Checkbox, Member: strCheckbox}).Result()
 			if err != nil {
 				log.Printf("[redis error]: error storing checkbox: %s\n", err.Error())
 				continue
@@ -124,9 +133,10 @@ func (h *websocketHandler) reader() {
 				return
 			}
 
-			int64Checks, err := rCli.ZCard(context.Background(), REDIS_KEY).Result()
+			// if this fails, the counter gets inconsistent
+			int64Checks, err := rCli.Incr(context.Background(), REDIS_CHECKS_COUNT_KEY).Result()
 			if err != nil {
-				log.Printf("[redis error]: error getting checks: %s\n", err.Error())
+				log.Printf("[redis error]: error getting checks count: %s\n", err.Error())
 				continue
 			}
 			uint32Checks := uint32(int64Checks)
@@ -148,13 +158,29 @@ func (h *websocketHandler) reader() {
 				return
 			}
 
+			// TODO -  limit the number
+
 			minCheckbox := strconv.FormatUint(uint64(uint32Slice[0]), 10)
 			maxCheckbox := strconv.FormatUint(uint64(uint32Slice[1]), 10)
 
-			strSliceCheckboxes, err := rCli.ZRangeByScore(context.Background(), REDIS_KEY, &redis.ZRangeBy{Min: minCheckbox, Max: maxCheckbox}).Result()
+			keyIndexMin := (uint32Slice[0] - 1) / REDIS_CHECKS_PER_KEY
+			keyIndexMax := (uint32Slice[1] - 1) / REDIS_CHECKS_PER_KEY
+
+			keyMin := fmt.Sprintf("%s_%d", REDIS_CHECKS_KEY, keyIndexMin)
+			strSliceCheckboxes, err := rCli.ZRangeByScore(context.Background(), keyMin, &redis.ZRangeBy{Min: minCheckbox, Max: maxCheckbox}).Result()
 			if err != nil {
 				log.Printf("[redis error]: error getting checked checkboxes: %s\n", err.Error())
 				continue
+			}
+
+			if keyIndexMin != keyIndexMax {
+				keyMax := fmt.Sprintf("%s_%d", REDIS_CHECKS_KEY, keyIndexMax)
+				strSliceCheckboxesMax, err := rCli.ZRangeByScore(context.Background(), keyMax, &redis.ZRangeBy{Min: minCheckbox, Max: maxCheckbox}).Result()
+				if err != nil {
+					log.Printf("[redis error]: error getting checked checkboxes: %s\n", err.Error())
+					continue
+				}
+				strSliceCheckboxes = append(strSliceCheckboxes, strSliceCheckboxesMax...)
 			}
 
 			uint8SliceLen := uint32Slice[1] - uint32Slice[0] + 1 + 4
@@ -166,7 +192,7 @@ func (h *websocketHandler) reader() {
 
 			for i := 0; i < len(strSliceCheckboxes); i++ {
 				strCheckbox := strSliceCheckboxes[i]
-				uint64Checkbox, err := strconv.ParseUint(strCheckbox, 10, 32)
+				uint64Checkbox, err := strconv.ParseUint(strCheckbox, 10, 64)
 				if err != nil {
 					log.Printf("[redis error]: error parsing checked checkboxes: %s\n", err.Error())
 					continue
