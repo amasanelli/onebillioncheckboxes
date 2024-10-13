@@ -196,19 +196,49 @@
       const bottomRow = Math.ceil(totalCheckboxes / checkboxesPerRow);
       const firstRowOfBottomScreen = bottomRow - (rowsPerScreen - 1);
 
-      const rowObserver = new IntersectionObserver(
+      const upObserver = new IntersectionObserver(
         (entries) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              entry.target.viewed = true; // allows to add rows outside the viewport
-            } else if (entry.target.viewed) {
-              const row = document.getElementById(entry.target.id);
-              if (!row) {
-                return;
+          if (entries[0].isIntersecting) {
+            const firstRow = rowsContainer.firstElementChild;
+            const firstRowId = parseInt(firstRow.id.slice(1));
+            const firstCheckbox = firstRow.firstElementChild;
+            const firstId = parseInt(firstCheckbox.id.slice(1));
+
+            const rowsToRender = Math.min(firstId / checkboxesPerRow, extraRowsToRender);
+
+            if (rowsToRender === 0) {
+              loadingUp.classList.add("hidden");
+              return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            let id = firstId - 1;
+            for (let y = 1; y <= rowsToRender; y++) {
+              const div = document.createElement("div");
+              div.classList.add("row");
+              div.id = `r${firstRowId - y}`;
+
+              for (let x = 1; x <= checkboxesPerRow; x++) {
+                const input = newCheckbox(id);
+                div.prepend(input);
+                id--;
               }
 
-              entry.target.remove(); // the row must be marked as viewed before removing
+              fragment.prepend(div);
+            }
+            rowsContainer.prepend(fragment);
 
+            const lastRow = rowsContainer.lastElementChild;
+            const lastRowId = parseInt(lastRow.id.slice(1));
+
+            for (let i = 0; i < rowsToRender; i++) {
+              const row = document.getElementById(`r${lastRowId - i}`);
+              if (row) {
+                row.remove();
+              }
+            }
+
+            {
               const firstRow = rowsContainer.firstElementChild;
               const firstCheckbox = firstRow.firstElementChild;
               const firstId = parseInt(firstCheckbox.id.slice(1));
@@ -228,44 +258,6 @@
               } else {
                 loadingDown.classList.add("hidden");
               }
-            }
-          }
-        },
-        {
-          root: scrollable,
-          rootMargin: `${extraRowsToRender * checkboxSize * 2}px`,
-        }
-      );
-
-      const upObserver = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            const firstRow = rowsContainer.firstElementChild;
-            const firstRowId = parseInt(firstRow.id.slice(1));
-            const firstCheckbox = firstRow.firstElementChild;
-            const firstId = parseInt(firstCheckbox.id.slice(1));
-
-            const rowsToRender = Math.min(firstId / checkboxesPerRow, extraRowsToRender);
-
-            if (rowsToRender === 0) {
-              loadingUp.classList.add("hidden");
-              return;
-            }
-
-            let id = firstId - 1;
-            for (let y = 1; y <= rowsToRender; y++) {
-              const div = document.createElement("div");
-              div.classList.add("row");
-              div.id = `r${firstRowId - y}`;
-
-              for (let x = 1; x <= checkboxesPerRow; x++) {
-                const input = newCheckbox(id);
-                div.prepend(input);
-                id--;
-              }
-
-              rowsContainer.prepend(div);
-              rowObserver.observe(div);
             }
 
             getData(id + 1, firstId - 1);
@@ -294,6 +286,7 @@
               return;
             }
 
+            const fragment = document.createDocumentFragment();
             let id = lastId + 1;
             for (let y = 1; y <= rowsToRender; y++) {
               const div = document.createElement("div");
@@ -308,8 +301,40 @@
                 id++;
               }
 
-              rowsContainer.append(div);
-              rowObserver.observe(div);
+              fragment.append(div);
+            }
+            rowsContainer.append(fragment);
+
+            const firstRow = rowsContainer.firstElementChild;
+            const firstRowId = parseInt(firstRow.id.slice(1));
+
+            for (let i = 0; i < rowsToRender; i++) {
+              const row = document.getElementById(`r${firstRowId + i}`);
+              if (row) {
+                row.remove();
+              }
+            }
+
+            {
+              const firstRow = rowsContainer.firstElementChild;
+              const firstCheckbox = firstRow.firstElementChild;
+              const firstId = parseInt(firstCheckbox.id.slice(1));
+
+              if (firstId > 1) {
+                loadingUp.classList.remove("hidden");
+              } else {
+                loadingUp.classList.add("hidden");
+              }
+
+              const lastRow = rowsContainer.lastElementChild;
+              const lastCheckbox = lastRow.lastElementChild;
+              const lastId = parseInt(lastCheckbox.id.slice(1));
+
+              if (lastId < totalCheckboxes) {
+                loadingDown.classList.remove("hidden");
+              } else {
+                loadingDown.classList.add("hidden");
+              }
             }
 
             getData(lastId + 1, id - 1);
@@ -415,7 +440,6 @@
         const lastId = parseInt(lastCheckbox.id.slice(1));
 
         if (idToSearch > lastId || idToSearch < firstId) {
-          rowObserver.disconnect();
           upObserver.disconnect();
           downObserver.disconnect();
           loadingUp.classList.add("hidden");
@@ -431,6 +455,7 @@
           const lastRowId = topScreenRowId - 1 - preExtraRows;
           const lastId = lastRowId * checkboxesPerRow;
 
+          const fragment = document.createDocumentFragment();
           let id = lastId + 1;
           for (let y = 1; y <= rowsToRender; y++) {
             const div = document.createElement("div");
@@ -445,9 +470,9 @@
               id++;
             }
 
-            rowsContainer.append(div);
-            rowObserver.observe(div);
+            fragment.append(div);
           }
+          rowsContainer.append(fragment);
 
           getData(lastId + 1, id - 1);
         }
@@ -503,30 +528,11 @@
         input.enabled = false;
         input.classList.add("waiting");
 
-        input.addEventListener("keydown", (event) => {
-          if (!event.target.enabled) {
-            event.preventDefault();
-          }
-        });
-
-        input.addEventListener("click", (event) => {
-          if (!event.target.enabled) {
-            event.preventDefault();
-          }
-        });
-
-        input.addEventListener("change", (event) => {
-          if (event.target.checked) {
-            event.target.enabled = false;
-            event.target.classList.add("waiting");
-            postData(parseInt(event.target.id.slice(1)));
-          }
-        });
-
         return input;
       }
 
       function init() {
+        const fragment = document.createDocumentFragment();
         let id = 1;
         for (let y = 1; y <= rowsPerScreen + extraRowsToRender; y++) {
           const div = document.createElement("div");
@@ -539,15 +545,38 @@
             id++;
           }
 
-          rowsContainer.append(div);
-          rowObserver.observe(div);
+          fragment.append(div);
         }
+        rowsContainer.append(fragment);
 
         getData(1, (rowsPerScreen + extraRowsToRender) * checkboxesPerRow);
 
         upObserver.observe(loadingUp);
         downObserver.observe(loadingDown);
         search.addEventListener("keydown", onKeyDown);
+        rowsContainer.addEventListener("keydown", (event) => {
+          if (event.target.matches('input[type="checkbox"]')) {
+            if (!event.target.enabled) {
+              event.preventDefault();
+            }
+          }
+        });
+        rowsContainer.addEventListener("click", (event) => {
+          if (event.target.matches('input[type="checkbox"]')) {
+            if (!event.target.enabled) {
+              event.preventDefault();
+            }
+          }
+        });
+        rowsContainer.addEventListener("change", (event) => {
+          if (event.target.matches('input[type="checkbox"]')) {
+            if (event.target.checked) {
+              event.target.enabled = false;
+              event.target.classList.add("waiting");
+              postData(parseInt(event.target.id.slice(1)));
+            }
+          }
+        });
       }
 
       function connect() {
@@ -563,7 +592,6 @@
         };
 
         websocket.onclose = function (event) {
-          rowObserver.disconnect();
           upObserver.disconnect();
           downObserver.disconnect();
           loadingUp.classList.add("hidden");
