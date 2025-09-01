@@ -4,15 +4,17 @@
 REDIS_ADDRESSES="172.28.0.101:6379,172.28.0.102:6379,172.28.0.103:6379"
 REDIS_ADDRESSES_REMAP="172.28.0.101:6379|:6371,172.28.0.102:6379|:6372,172.28.0.103:6379|:6373"
 SERVER_ADDRESS="localhost:3003"
-EMAIL=""
+ME_URL=""
 BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="ws://localhost:3003/ws"
+LIMITER_LIMIT=10
+LIMITER_BURST=10
 ```
 
 # cloud.docker-compose.env
 
 ```
-EMAIL="
+ME_URL="
 BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="wss://localhost/ws"
 ```
@@ -49,7 +51,7 @@ docker push australia-southeast2-docker.pkg.dev/billionchecks/billionchecks/redi
 
 # Deploying commands
 
-- Activate COmpute Engine API
+- Activate Compute Engine API
 - Create a Debian VM
 
 ## Install docker
