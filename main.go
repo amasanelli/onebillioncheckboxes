@@ -25,6 +25,7 @@ type envSchema struct {
 	WEBSOCKET_URL         string            `env:"WEBSOCKET_URL,required"`
 	LIMITER_LIMIT         int               `env:"LIMITER_LIMIT,required"`
 	LIMITER_BURST         int               `env:"LIMITER_BURST,required"`
+	ALLOWED_ORIGINS       []string          `env:"ALLOWED_ORIGINS,required"`
 }
 
 var envData *envSchema
@@ -49,7 +50,15 @@ func main() {
 
 	upgrader = &websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
-			return true
+			origin := r.Header.Get("Origin")
+			for i := 0; i < len(envData.ALLOWED_ORIGINS); i++ {
+				allowedOrigin := envData.ALLOWED_ORIGINS[i]
+				if origin == allowedOrigin {
+					return true
+				}
+			}
+			return false
+
 		},
 	}
 

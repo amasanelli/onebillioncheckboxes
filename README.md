@@ -9,6 +9,7 @@ BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="ws://localhost:3003/ws"
 LIMITER_LIMIT=10
 LIMITER_BURST=10
+ALLOWED_ORIGINS="http://localhost:3000"
 ```
 
 # cloud.docker-compose.env
@@ -17,6 +18,7 @@ LIMITER_BURST=10
 ME_URL="
 BUY_ME_A_COFFEE_URL=""
 WEBSOCKET_URL="wss://localhost/ws"
+ALLOWED_ORIGINS="https://billionchecks.com,https://www.billionchecks.com"
 ```
 
 # Testing
