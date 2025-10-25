@@ -1,4 +1,4 @@
-#Real - Time Billion Checkbox Backend
+# One Million Checkboxes
 
 This project is a high-performance backend server for a massively multiplayer web application: a page with **one billion checkboxes**. It's built with **Go** and uses **WebSockets** for real-time communication and a **Redis Cluster** for scalable, persistent state management.
 
